@@ -69,9 +69,17 @@ public class TestListener implements ITestListener, ISuiteListener {
 
             // UI failures get a screenshot; API failures silently skip (no driver bound).
             if (DriverManager.hasDriver()) {
-                String path = ScreenshotUtil.capture(result.getMethod().getMethodName());
-                if (path != null) {
-                    ReportManager.current().addScreenCaptureFromPath(path);
+                // Archive a PNG on disk (useful as a CI artifact)...
+                ScreenshotUtil.capture(result.getMethod().getMethodName());
+                // ...and embed the image inline as a Base64 data-URI <img> so it renders
+                // directly on the report page (not as a click-to-expand thumbnail) and
+                // always displays regardless of where the report file is opened or moved.
+                String base64 = ScreenshotUtil.captureBase64();
+                if (base64 != null) {
+                    ReportManager.current().fail(
+                            "<img src='data:image/png;base64," + base64 + "' "
+                                    + "style='width:100%;max-width:900px;border:1px solid #ccc;' "
+                                    + "alt='screenshot at failure'/>");
                 }
             }
         }
