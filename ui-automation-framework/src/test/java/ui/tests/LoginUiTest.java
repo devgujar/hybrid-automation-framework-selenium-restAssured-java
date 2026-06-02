@@ -24,8 +24,7 @@ public class LoginUiTest extends BaseUiTest {
     public void FailLoginTest() {
         LoginPage login = new LoginPage(getDriver())
                 .openAt(baseUrl())
-                .loginAs("standard_user", "secret_sauce");
-
+                .login("standard_userddd", "secret_sauce");
         Assert.assertTrue(login.isLoggedIn(), "User should land on the inventory page after valid login");
     }
 
