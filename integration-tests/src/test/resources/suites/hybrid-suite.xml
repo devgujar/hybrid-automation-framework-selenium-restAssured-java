@@ -12,9 +12,11 @@
                 <include name="hybrid"/>
             </run>
         </groups>
-        <classes>
-            <class name="hybrid.tests.CustomerHybridTest"/>
-        </classes>
+
+        <packages>
+            <package name="hybrid.tests.*"/>
+        </packages>
+
     </test>
 </suite>
 

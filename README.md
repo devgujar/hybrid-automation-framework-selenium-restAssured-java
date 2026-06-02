@@ -25,10 +25,12 @@ root (pom) ───────────────────────
 
 **How UI and API interact without tight coupling**
 
-- UI never imports REST Assured directly. Hybrid tests talk to a **`CustomerService` facade**
-  (`integration-tests/hybrid.services`) that wraps the existing `api.clients.CustomerApiClient`.
-- The API module exposes plain `Response` methods; the facade adapts them into hybrid-friendly
-  operations (`ensureCustomer`, `exists`, `fetchName`, `cleanup`).
+- UI code never imports REST Assured. Hybrid tests live in `integration-tests` and call the
+  existing `api.clients.CustomerApiClient` **directly** for the API side.
+- The bridge is **`BaseHybridTest`** (`integration-tests`, package `common.base`): it
+  **extends** `ui.base.BaseUiTest` (full WebDriver lifecycle) and **composes**
+  `api.base.BaseApiTest` (RestAssured base URI + relaxed SSL) — getting both behaviours without
+  illegal multiple inheritance and without touching the API module.
 - Result: **loose coupling**, **no duplicated API logic**, API module stays a black box.
 
 ---
@@ -41,8 +43,8 @@ Two **external** consumption modes:
 
 | Mode | Where | Example |
 |------|-------|---------|
-| Direct client call | hybrid test setup | `new CustomerApiClient().getCustomer(id)` |
-| Service wrapper / facade | `hybrid.services.CustomerService` | `customerService.ensureCustomer(...)` |
+| Direct client call | hybrid test body / setup | `new CustomerApiClient().getCustomer(id)` |
+| Reused API base setup | `common.base.BaseHybridTest` | composes `api.base.BaseApiTest#setUpBaseURI()` |
 
 **Listener reuse across UI *and* API without touching the API module** uses TestNG
 **ServiceLoader auto-discovery**:

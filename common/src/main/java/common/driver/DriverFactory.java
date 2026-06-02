@@ -13,6 +13,8 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Factory responsible for creating and configuring {@link WebDriver} instances.
@@ -84,6 +86,17 @@ public final class DriverFactory {
             options.addArguments("--headless=new");
         }
         options.addArguments("--no-sandbox", "--disable-dev-shm-usage", "--window-size=1920,1080");
+        // Disable password manager popup
+        options.addArguments("--disable-notifications");
+        options.addArguments("--disable-save-password-bubble");
+        options.addArguments("--incognito");
+
+        // Recommended prefs
+        Map<String, Object> prefs = new HashMap<>();
+        prefs.put("credentials_enable_service", false);
+        prefs.put("profile.password_manager_enabled", false);
+        options.setExperimentalOption("prefs", prefs);
+
         return options;
     }
 

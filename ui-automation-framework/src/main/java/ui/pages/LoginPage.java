@@ -3,6 +3,7 @@ package ui.pages;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import ui.base.BasePage;
+import ui.support.XPathStore;
 
 /**
  * Sample Page Object (POM) for the SauceDemo login page.
@@ -12,11 +13,11 @@ import ui.base.BasePage;
  */
 public class LoginPage extends BasePage {
 
-    private final By username = inputByIdContains("user-name");
-    private final By password = inputByIdContains("password");
-    private final By loginButton = inputByIdContains("login-button");
-    private final By errorBanner = byAttributeContains("*", "data-test", "error");
-    private final By inventoryContainer = byIdContains("inventory_container");
+    private final By username = XPathStore.by("INPUT_BY_ID", "user-name");
+    private final By password = XPathStore.by("INPUT_BY_ID", "password");
+    private final By loginButton = XPathStore.by("INPUT_BY_ID", "login-button");
+    private final By errorBanner = XPathStore.by("ELEMENT_BY_TAG_ATTRIBUTE", "*", "data-test", "error");
+    private final By inventoryContainer = XPathStore.by("ELEMENT_BY_ID", "inventory_container");
 
     public LoginPage(WebDriver driver) {
         super(driver);
@@ -29,12 +30,28 @@ public class LoginPage extends BasePage {
     }
 
     /** Performs a login with the supplied credentials. */
-    public LoginPage loginAs(String user, String pass) {
-        type(username, user);
-        type(password, pass);
+    public LoginPage login(String user, String pass) {
+        sendKeys(username, user);
+        sendKeys(password, pass);
         click(loginButton);
         return this;
     }
+
+    /** Performs a login with the default credentials. */
+    public LoginPage login() {
+        login(config.get("ui.default.userName"), config.get("ui.default.password"));
+        return this;
+    }
+
+    /** Performs a login with the supplied user and default password. */
+    public LoginPage login(String user) {
+        login(user, config.get("ui.default.password"));
+        return this;
+    }
+
+
+
+
 
     /** @return {@code true} when the post-login inventory page is displayed. */
     public boolean isLoggedIn() {

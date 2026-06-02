@@ -5,8 +5,11 @@ import common.driver.DriverFactory;
 import common.driver.DriverManager;
 import common.listeners.TestListener;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import ui.pages.LoginPage;
+import ui.support.XPathStore;
 
 /**
  * Base class for all Selenium UI tests.
@@ -30,6 +33,10 @@ public abstract class BaseUiTest {
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
         DriverFactory.createDriver();
+
+        new LoginPage(getDriver())
+                .openAt(baseUrl())
+                .login();
     }
 
     /** @return the WebDriver bound to the current thread (parallel-safe). */
@@ -46,7 +53,6 @@ public abstract class BaseUiTest {
     public void tearDown() {
         DriverManager.quit();
     }
-
 
 }
 

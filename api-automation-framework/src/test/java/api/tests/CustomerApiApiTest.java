@@ -1,7 +1,7 @@
 package api.tests;
 
 import api.base.BaseApiClient;
-import api.base.BaseTest;
+import api.base.BaseApiTest;
 import api.clients.CustomerApiClient;
 import io.restassured.response.Response;
 import org.testng.Assert;
@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * CustomerApiTest contains TestNG test cases for validating Customer API endpoints.
+ * CustomerApiApiTest contains TestNG test cases for validating Customer API endpoints.
  * <p>
  * Scenarios covered:
  * <ul>
@@ -22,7 +22,7 @@ import java.util.Map;
  * </ul>
  * </p>
  */
-public class CustomerApiTest extends BaseTest {
+public class CustomerApiApiTest extends BaseApiTest {
 
     CustomerApiClient client = new CustomerApiClient();
 

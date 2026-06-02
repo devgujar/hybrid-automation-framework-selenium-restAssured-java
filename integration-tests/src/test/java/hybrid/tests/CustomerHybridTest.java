@@ -54,7 +54,7 @@ public class CustomerHybridTest extends BaseHybridTest {
         // --- UI: drive the browser; in a real app this page would render the same entity ---
         LoginPage login = new LoginPage(getDriver())
                 .openAt(baseUrl())
-                .loginAs("standard_user", "secret_sauce");
+                .login("standard_user", "secret_sauce");
         Assert.assertTrue(login.isLoggedIn(), "UI session should be established for the hybrid flow");
     }
 
@@ -71,7 +71,7 @@ public class CustomerHybridTest extends BaseHybridTest {
 
         new LoginPage(getDriver())
                 .openAt(baseUrl())
-                .loginAs("standard_user", "secret_sauce");
+                .login("standard_user", "secret_sauce");
 
         // Illustrative: a real UI page would expose the customer; we assert the API-derived value is usable.
         Assert.assertFalse(expectedName.isBlank(), "API-provided data should be usable by UI assertions");

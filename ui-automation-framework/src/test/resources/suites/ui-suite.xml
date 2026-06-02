@@ -15,9 +15,11 @@
                 <include name="ui"/>
             </run>
         </groups>
-        <classes>
-            <class name="ui.tests.LoginUiTest"/>
-        </classes>
+
+        <packages>
+            <package name="ui.*"/>
+        </packages>
+
     </test>
 </suite>
 

@@ -5,14 +5,14 @@ import io.restassured.RestAssured;
 import org.testng.annotations.BeforeMethod;
 
 /**
- * BaseTest is the base class for all API test classes.
+ * BaseApiTest is the base class for all API test classes.
  * <p>
  * It sets up the RestAssured base URI and SSL configuration before each test method.
  * The base URI is loaded from the configuration property 'api.base.uri'.
  * SSL relaxed validation can be enabled via the 'api.ssl.relaxed' property (default: true).
  * </p>
  */
-public class BaseTest {
+public class BaseApiTest {
     static ConfigManager config = ConfigManager.getInstance();
 
     /**
