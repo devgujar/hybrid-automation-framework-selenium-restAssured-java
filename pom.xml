@@ -23,6 +23,13 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- dependency versions -->
+        <selenium.version>4.21.0</selenium.version>
+        <slf4j.version>2.0.13</slf4j.version>
+        <log4j.version>2.23.1</log4j.version>
+        <extentreports.version>5.1.1</extentreports.version>
+        <surefire.version>3.2.5</surefire.version>
     </properties>
 
     <dependencyManagement>
@@ -65,6 +72,37 @@
 
             <!--ui automation dependencies-->
             <dependency>
+                <groupId>org.seleniumhq.selenium</groupId>
+                <artifactId>selenium-java</artifactId>
+                <version>${selenium.version}</version>
+            </dependency>
+
+            <!--logging dependencies-->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j2-impl</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+
+            <!--reporting dependencies-->
+            <dependency>
+                <groupId>com.aventstack</groupId>
+                <artifactId>extentreports</artifactId>
+                <version>${extentreports.version}</version>
+            </dependency>
+
+            <!--ui automation dependencies-->
+            <dependency>
                 <groupId>com.microsoft.playwright</groupId>
                 <artifactId>playwright</artifactId>
                 <version>1.59.0</version>
@@ -87,9 +125,24 @@
     </dependencyManagement>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${surefire.version}</version>
+                    <configuration>
+                        <!-- Modules with a testng.xml override <suiteXmlFiles>; modules without
+                             one (e.g. the untouched API module) fall back to class scanning. -->
+                        <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
         </plugins>
     </build>
+
 
 </project>
 

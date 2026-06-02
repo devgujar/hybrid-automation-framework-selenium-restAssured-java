@@ -1,7 +1,7 @@
 package api.core;
 
+import common.config.ConfigManager;
 import io.restassured.specification.RequestSpecification;
-import api.config.ConfigManager;
 
 /**
  * Centralised authentication strategy applier for API requests.
@@ -20,6 +20,9 @@ public final class AuthProvider {
 
     private AuthProvider() {}
 
+    static ConfigManager config = ConfigManager.getInstance();
+
+
     /**
      * Supported authentication types for API requests.
      */
@@ -34,15 +37,17 @@ public final class AuthProvider {
      * @return RequestSpecification with authentication applied
      */
     public static RequestSpecification applyAuthentication(RequestSpecification spec) {
+
         AuthType type = resolveType();
+
         return switch (type) {
             case BASIC   -> spec.auth().preemptive().basic(
-                    ConfigManager.get("auth.username"),
-                    ConfigManager.get("auth.password"));
-            case BEARER  -> spec.header("Authorization", "Bearer " + ConfigManager.get("auth.token"));
-            case OAUTH2  -> spec.auth().oauth2(ConfigManager.get("auth.oauth.token"));
-            case API_KEY -> spec.header(ConfigManager.get("auth.header.name"),
-                                        ConfigManager.get("auth.header.value"));
+                    config.get("api.auth.username"),
+                    config.get("api.auth.password"));
+            case BEARER  -> spec.header("Authorization", "Bearer " + config.get("api.auth.token"));
+            case OAUTH2  -> spec.auth().oauth2(config.get("api.auth.oauth.token"));
+            case API_KEY -> spec.header(config.get("api.auth.header.name"),
+                    config.get("api.auth.header.value"));
             case NONE    -> spec;
         };
     }
@@ -56,9 +61,9 @@ public final class AuthProvider {
      * @return AuthType enum value
      */
     private static AuthType resolveType() {
-        String t = ConfigManager.get("auth.type", "none")
+        String authType = config.get("api.auth.type", "NONE")
                 .trim().toUpperCase().replace('-', '_');
-        try { return AuthType.valueOf(t); }
+        try { return AuthType.valueOf(authType); }
         catch (IllegalArgumentException e) { return AuthType.NONE; }
     }
 }

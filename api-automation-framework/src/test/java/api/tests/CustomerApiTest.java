@@ -23,6 +23,7 @@ import java.util.Map;
  * </p>
  */
 public class CustomerApiTest extends BaseTest {
+
     CustomerApiClient client = new CustomerApiClient();
 
     /**

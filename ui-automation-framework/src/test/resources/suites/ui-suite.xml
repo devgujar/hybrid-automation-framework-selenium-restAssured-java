@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+
+<!-- UI-only suite. Parallel by methods; each thread gets its own WebDriver
+     thanks to DriverManager (ThreadLocal). -->
+<suite name="UI-Suite" parallel="methods" thread-count="2">
+
+    <!-- Listeners are auto-registered globally via TestNG ServiceLoader in 'common'
+         (META-INF/services/org.testng.ITestNGListener). No explicit block needed.
+         To register here instead, add a <listeners> element. -->
+
+    <test name="UI-Tests">
+        <groups>
+            <run>
+                <include name="ui"/>
+            </run>
+        </groups>
+        <classes>
+            <class name="ui.tests.LoginUiTest"/>
+        </classes>
+    </test>
+</suite>
+

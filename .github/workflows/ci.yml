@@ -1,0 +1,64 @@
+name: Hybrid Automation CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      layer:
+        description: "Which layer to run"
+        required: true
+        default: "all"
+        type: choice
+        options: [ all, api, ui, hybrid ]
+      env:
+        description: "Target environment"
+        required: true
+        default: "qa"
+        type: choice
+        options: [ qa, staging, prod ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # Compile + install all modules so inter-module artifacts are available.
+      - name: Build (no tests)
+        run: mvn -B -DskipTests clean install
+
+      # --- Layer-scoped test execution via module selection ---
+      - name: API tests
+        if: ${{ github.event.inputs.layer == 'api' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
+        run: mvn -B test -pl api-automation-framework -Denv=${{ github.event.inputs.env || 'qa' }}
+
+      - name: UI tests (headless)
+        if: ${{ github.event.inputs.layer == 'ui' || github.event.inputs.layer == 'all' }}
+        run: mvn -B test -pl ui-automation-framework -Denv=${{ github.event.inputs.env || 'qa' }} -Dheadless=true
+
+      - name: Hybrid tests (headless)
+        if: ${{ github.event.inputs.layer == 'hybrid' || github.event.inputs.layer == 'all' }}
+        run: mvn -B test -pl integration-tests -am -Denv=${{ github.event.inputs.env || 'qa' }} -Dheadless=true
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automation-reports
+          path: |
+            **/target/extent-report.html
+            **/target/screenshots/**
+            **/target/logs/**
+            **/target/surefire-reports/**
+          if-no-files-found: ignore
+
