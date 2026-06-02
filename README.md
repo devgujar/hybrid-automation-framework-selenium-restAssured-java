@@ -12,7 +12,7 @@ and glued together by a shared **common** module.
 ```
 root (pom) ──────────────────────────────────────────────────────────────
  │
- ├── common/                  Shared infra: config, driver, listeners, reporting
+ ├── common/                  Shared infra: config, driver, listeners, reporting, utility
  │      └── used by ───────────────┐                ┌──────────── used by
  │                                 ▼                ▼
  ├── api-automation-framework/  (EXISTING — unchanged)   ui-automation-framework/  (Selenium)
@@ -20,7 +20,7 @@ root (pom) ───────────────────────
  │                                 │                ▲
  │                                 └──── both reused by ────┐
  │                                                          ▼
- └── integration-tests/   Hybrid orchestration: services (API facade) + UI + cross-layer tests
+ └── integration-tests/   Hybrid orchestration: BaseHybridTest + cross-layer UI/API tests
 ```
 
 **How UI and API interact without tight coupling**
@@ -39,7 +39,7 @@ root (pom) ───────────────────────
 
 > ❗ The API module must remain **unchanged**.
 
-Two **external** consumption modes:
+External consumption from the hybrid layer:
 
 | Mode | Where | Example |
 |------|-------|---------|
@@ -64,30 +64,32 @@ these listeners automatically — **zero changes to API code or its test files**
 
 ```
 common/src/main/java/common/
-   config/ConfigManager.java          # Singleton, env-aware
+   config/ConfigManager.java          # Singleton, env-aware (UI + hybrid)
    driver/DriverFactory.java          # Factory (browser/grid/headless)
    driver/DriverManager.java          # ThreadLocal WebDriver (parallel-safe)
    listeners/TestListener.java        # Shared ITestListener + ISuiteListener
-   listeners/RetryAnalyzer.java       # Flaky-test retry
+   listeners/RetryAnalyzer.java       # Flaky-test retry (ui.retry.count)
    listeners/RetryTransformer.java    # Auto-applies retry to all @Test
    reporting/ReportManager.java       # ExtentReports (Singleton + ThreadLocal)
-   reporting/ScreenshotUtil.java      # UI screenshots (no-op for API threads)
+   utility/ScreenshotUtil.java        # UI screenshots (no-op for API threads)
 common/src/main/resources/
    apiBaseConfig.properties           # shared API base config (relocated from API module; classpath root)
-   config/ui.{qa,stage}.properties        # UI (Selenium) env config + shared UI defaults
-   config/api.{qa,stage}.properties       # API (RestAssured) env config
+   config/ui.qa.properties            # UI (Selenium) QA env + shared UI defaults
+   config/ui.stage.properties         # UI (Selenium) Stage env
+   config/api.qa.properties           # API (RestAssured) QA env
+   config/api.stage.properties        # API (RestAssured) Stage env
    log4j2.xml
    META-INF/services/org.testng.ITestNGListener
 
 api-automation-framework/   (UNCHANGED)  api.base / api.clients / api.core / api.config
 
 ui-automation-framework/src/main/java/ui/
-   base/BaseUiTest.java                # driver lifecycle + inherited listeners
-   pages/{BasePage,LoginPage}.java     # Page Object Model
+   base/{BaseUiTest,BasePage}.java     # driver lifecycle (getDriver) + POM foundation
+   pages/LoginPage.java                # Page Object Model
 ui-automation-framework/src/test/...    tests/LoginUiTest.java + suites/ui-suite.xml
 
 integration-tests/  (hybrid)
-   src/main/java/hybrid/services/CustomerService.java   # API facade
+   src/main/java/common/base/BaseHybridTest.java        # UI lifecycle + composed API setup
    src/test/java/hybrid/tests/CustomerHybridTest.java + suites/hybrid-suite.xml
 ```
 
@@ -101,6 +103,7 @@ integration-tests/  (hybrid)
 | **Factory** | `DriverFactory` | Build configured WebDriver instances |
 | **Singleton** | `ConfigManager`, `ReportManager` | One shared config/report source |
 | **ThreadLocal holder** | `DriverManager` | Parallel-safe driver per thread |
+| **Composition over inheritance** | `BaseHybridTest` | Inherit UI base + compose API base |
 | **IAnnotationTransformer** | `RetryTransformer` | Apply retry globally |
 
 ---
@@ -109,22 +112,22 @@ integration-tests/  (hybrid)
 
 - ✅ **TestNG listeners** auto-registered via ServiceLoader.
 - **Logging** — SLF4J + Log4j2 (`log4j2.xml`, console + `target/logs/automation.log`).
-- **Config** — system props > `config/<env>.properties` > `config/config.properties`.
+- **Config** — system props > `config/api.<env>.properties` > `config/ui.<env>.properties` > `apiBaseConfig.properties`.
 - **Reporting** — ExtentReports → `target/extent-report.html`.
-- **Screenshots** — attached to the report on UI failures only.
+- **Screenshots** — `common.utility.ScreenshotUtil` attaches to the report on UI failures only.
 
 ---
 
 ## 6. TestNG Strategy
 
-- **Suites:** `ui-suite.xml`, `hybrid-suite.xml` (API module keeps default scanning).
+- **Suites:** `ui-suite.xml`, `hybrid-suite.xml` (API module keeps default class scanning).
 - **Groups:** `smoke`, `regression`, `ui`, `api`, `hybrid`.
-- **Parallelism:** `parallel="methods"` with a `ThreadLocal` driver per thread.
-- **Retry:** `RetryTransformer` applies `RetryAnalyzer` (`retry.count`).
+- **Parallelism:** `parallel="methods"` with a `ThreadLocal` driver per thread; tests read it via `getDriver()`.
+- **Retry:** `RetryTransformer` applies `RetryAnalyzer` (`ui.retry.count`).
 
 ---
 
-## 7. Hybrid Test Examples (`hybrid.tests.CustomerHybridTest`)
+## 7. Hybrid Test Examples (`hybrid.tests.CustomerHybridTest extends BaseHybridTest`)
 
 1. **Create data via API → validate via API**, then drive UI in the same test.
 2. **Fetch data via API → feed UI validation** (API = source of truth).
@@ -135,31 +138,35 @@ integration-tests/  (hybrid)
 ## 8–10. Driver, Config, Reporting
 
 - Thread-safe `DriverFactory` + `DriverManager` (Chrome/Firefox/Edge, local or **Selenium Grid**).
-- Config keys: `browser`, `headless`, `grid.enabled`, `grid.url`, timeouts, `retry.count`.
-- Environments via `-Denv=qa|stage`; any key overridable with `-Dkey=value`.
+- Config keys (UI): `ui.browser`, `ui.headless`, `ui.grid.enabled`, `ui.grid.url`,
+  `ui.implicit.wait.seconds`, `ui.page.load.timeout.seconds`, `ui.explicit.wait.seconds`, `ui.retry.count`, `ui.base.url`.
+- Config keys (API): `api.base.uri`, `api.ssl.relaxed`, `api.enable.logging`, `api.auth.*`
+  (resolved by the API module via `apiBaseConfig.properties`).
+- Environments via `-Denv=qa|stage` (default `qa`); any key overridable with `-Dkey=value`.
 - UI failures auto-attach a screenshot; API request/response logging stays in the API framework
-  (`enable.logging` in `apiBaseConfig.properties`).
+  (`api.enable.logging` in `config/api.<env>.properties`).
 
 ---
 
 ## 11–12. CI/CD & Local Runs
 
-`.github/workflows/ci.yml` builds all modules then runs each layer:
+Maven drives every layer; module selection keeps runs targeted and maps onto any CI runner
+(GitHub Actions / Jenkins) with one stage per layer:
 
 ```bash
-mvn clean install -DskipTests                          # build everything
-mvn test -pl api-automation-framework                  # API layer
-mvn test -pl ui-automation-framework -Dheadless=true   # UI layer
-mvn test -pl integration-tests -am -Dheadless=true     # Hybrid layer
-mvn test -pl ui-automation-framework -Dbrowser=firefox -Denv=qa   # overrides
+mvn clean install -DskipTests                              # build everything
+mvn test -pl api-automation-framework                      # API layer (default scanning)
+mvn test -pl ui-automation-framework -Dui.headless=true    # UI layer
+mvn test -pl integration-tests -am -Dui.headless=true      # Hybrid layer
+mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=qa   # overrides
 ```
 
 ---
 
 ## 13. Best Practices
 
-- No duplication of API logic (direct calls + facade).
-- Minimal UI↔API coupling (only via `common` + thin service layer).
-- Highly reusable `common` module; parallel-ready and environment-driven.
+- No duplication of API logic (direct client calls, API module untouched).
+- Minimal UI↔API coupling (only via `common` + the `BaseHybridTest` bridge).
+- Highly reusable `common` module; parallel-ready (ThreadLocal driver) and environment-driven.
 
 
