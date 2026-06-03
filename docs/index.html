@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hybrid Automation Framework — Selenium + REST Assured + TestNG</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #2d3645;
+    --text: #e6edf3;
+    --muted: #9aa7b4;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #d29922;
+    --purple: #bc8cff;
+    --pink: #f778ba;
+    --radius: 14px;
+    --shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #15233b 0%, var(--bg) 55%);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 22px; }
+
+  /* Hero */
+  header.hero {
+    padding: 70px 0 40px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  .badge-row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom: 22px; }
+  .badge {
+    font-size: 12.5px; letter-spacing:.3px; padding: 6px 12px; border-radius: 999px;
+    border:1px solid var(--border); background: var(--panel); color: var(--muted);
+  }
+  .badge b { color: var(--text); }
+  header.hero h1 { font-size: 2.5rem; margin: 6px 0 10px; line-height:1.15; }
+  header.hero h1 span { color: var(--accent); }
+  header.hero p { color: var(--muted); max-width: 720px; margin: 0 auto; font-size: 1.08rem; }
+
+  /* Stat cards */
+  .stats { display:grid; grid-template-columns: repeat(4,1fr); gap:16px; margin: 34px 0 10px; }
+  .stat { background: var(--panel); border:1px solid var(--border); border-radius: var(--radius); padding:18px; text-align:center; }
+  .stat .num { font-size: 1.9rem; font-weight: 700; color: var(--text); }
+  .stat .lbl { color: var(--muted); font-size: .9rem; }
+
+  section { padding: 46px 0; border-bottom: 1px solid var(--border); }
+  h2.title { font-size: 1.55rem; margin: 0 0 6px; display:flex; align-items:center; gap:10px; }
+  h2.title .dot { width:10px;height:10px;border-radius:50%;background:var(--accent); box-shadow:0 0 14px var(--accent); }
+  .sub { color: var(--muted); margin: 0 0 26px; }
+
+  /* Architecture diagram */
+  .arch { display:flex; flex-direction:column; align-items:center; gap:0; }
+  .node {
+    border:1px solid var(--border); border-radius: var(--radius); background: var(--panel);
+    padding:16px 20px; text-align:center; box-shadow: var(--shadow); position:relative;
+  }
+  .node h3 { margin:0 0 4px; font-size:1.05rem; }
+  .node small { color: var(--muted); display:block; font-size:.82rem; }
+  .node.common { border-color: #2f5d8a; background: linear-gradient(180deg,#15233b,#161b22); min-width: 320px; }
+  .connector { width:2px; height:28px; background: var(--border); }
+  .layer-row { display:grid; grid-template-columns: repeat(3,1fr); gap:18px; width:100%; margin-top:4px; }
+  .node.layer.api { border-color:#3b6b3f; }
+  .node.layer.ui { border-color:#6f4fa0; }
+  .node.layer.hybrid { border-color:#9c5a82; }
+  .tag { display:inline-block; font-size:.72rem; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); margin-top:8px; }
+  .arch-note { color: var(--muted); text-align:center; margin-top:18px; font-size:.92rem; }
+  .brace { color: var(--muted); font-size:.8rem; margin-top:8px; }
+
+  /* Generic cards grid */
+  .grid { display:grid; gap:16px; }
+  .grid.cols-2 { grid-template-columns: repeat(2,1fr); }
+  .grid.cols-3 { grid-template-columns: repeat(3,1fr); }
+  .card {
+    background: var(--panel); border:1px solid var(--border); border-radius: var(--radius);
+    padding:18px 18px 16px;
+  }
+  .card h4 { margin:0 0 6px; font-size:1.02rem; display:flex; align-items:center; gap:8px; }
+  .card p { margin:0; color: var(--muted); font-size:.92rem; }
+  .ico { width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:14px; background:var(--panel-2); border:1px solid var(--border); }
+
+  /* Table */
+  table { width:100%; border-collapse: collapse; background: var(--panel); border:1px solid var(--border); border-radius: var(--radius); overflow:hidden; }
+  th, td { text-align:left; padding:12px 14px; border-bottom:1px solid var(--border); font-size:.92rem; vertical-align:top; }
+  th { background: var(--panel-2); color: var(--text); font-weight:600; }
+  tr:last-child td { border-bottom:none; }
+  td code, p code, li code { background: var(--panel-2); border:1px solid var(--border); padding:1px 6px; border-radius:6px; font-size:.85em; color:#cdd9e5; }
+
+  /* Code block */
+  pre {
+    background:#0b0f16; border:1px solid var(--border); border-radius: var(--radius);
+    padding:16px 18px; overflow:auto; font-size:.86rem; line-height:1.5;
+  }
+  pre code { color:#c9d1d9; font-family: "SF Mono", "Cascadia Code", Consolas, monospace; }
+  .cm { color:#6e7781; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+
+  /* Flow steps */
+  .flow { display:grid; grid-template-columns: repeat(4,1fr); gap:14px; }
+  .step { background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px; position:relative; }
+  .step .n { width:26px;height:26px;border-radius:50%;background:var(--accent);color:#06101f;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:.85rem;margin-bottom:10px; }
+  .step h4 { margin:0 0 4px; font-size:.95rem; }
+  .step p { margin:0; color:var(--muted); font-size:.85rem; }
+  .step.api .n { background: var(--green); }
+  .step.ui .n { background: var(--purple); }
+
+  ul.clean { list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+  ul.clean li { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; color:var(--muted); font-size:.93rem; }
+  ul.clean li b { color: var(--text); }
+
+  footer { padding:34px 0 60px; text-align:center; color: var(--muted); font-size:.88rem; }
+
+  @media (max-width: 820px) {
+    .stats { grid-template-columns: repeat(2,1fr); }
+    .layer-row, .grid.cols-2, .grid.cols-3, .flow { grid-template-columns: 1fr; }
+    header.hero h1 { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="badge-row">
+      <span class="badge"><b>Selenium</b> WebDriver 4</span>
+      <span class="badge"><b>REST Assured</b> 5</span>
+      <span class="badge"><b>TestNG</b> 7</span>
+      <span class="badge"><b>Java</b> 17</span>
+      <span class="badge"><b>Maven</b> multi-module</span>
+    </div>
+    <h1>Hybrid Automation Framework<br><span>UI + API</span>, one cohesive design</h1>
+    <p>A scalable, modular framework that pairs Selenium UI automation with REST Assured API
+       automation, orchestrated by TestNG and unified by a shared <code>common</code> module
+       for config, drivers, listeners and reporting.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="num">4</div><div class="lbl">Maven modules</div></div>
+      <div class="stat"><div class="num">8</div><div class="lbl">Design patterns</div></div>
+      <div class="stat"><div class="num">3</div><div class="lbl">Test layers</div></div>
+      <div class="stat"><div class="num">2</div><div class="lbl">Environments</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Architecture</h2>
+    <p class="sub">One shared foundation, three independent test layers.</p>
+
+    <div class="arch">
+      <div class="node common">
+        <h3>common</h3>
+        <small>config &middot; driver &middot; utility &middot; listeners &middot; reporting</small>
+        <span class="tag">depended on by every module</span>
+      </div>
+      <div class="connector"></div>
+      <div class="layer-row">
+        <div class="node layer api">
+          <h3>api</h3>
+          <small>REST Assured</small>
+          <small>base &middot; clients &middot; core</small>
+        </div>
+        <div class="node layer ui">
+          <h3>ui</h3>
+          <small>Selenium</small>
+          <small>base &middot; pages &middot; support &middot; tests</small>
+        </div>
+        <div class="node layer hybrid">
+          <h3>integration-tests</h3>
+          <small>Hybrid</small>
+          <small>BaseHybridTest + UI&times;API scenarios</small>
+        </div>
+      </div>
+      <p class="arch-note">
+        The <b>hybrid</b> layer reuses <b>api</b> (clients) + <b>ui</b> (browser). UI code never
+        imports REST Assured; API code never imports Selenium — they meet only in
+        <code>BaseHybridTest</code>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- MODULES -->
+<section id="modules">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Module Responsibilities</h2>
+    <p class="sub">Each module has one clear job.</p>
+    <div class="grid cols-2">
+      <div class="card"><h4><span class="ico">🧩</span>common</h4>
+        <p>Singleton <code>ConfigManager</code>, <code>DriverFactory</code> + ThreadLocal
+           <code>DriverManager</code>, shared TestNG listeners, ExtentReports
+           <code>ReportManager</code>, and <code>ScreenshotUtil</code>.</p></div>
+      <div class="card"><h4><span class="ico">🔌</span>api</h4>
+        <p>REST Assured clients (<code>CustomerApiClient</code>), base request/response handling,
+           auth and spec factories. Consumed directly by hybrid tests.</p></div>
+      <div class="card"><h4><span class="ico">🖥️</span>ui</h4>
+        <p>Page Object Model (<code>BasePage</code>, <code>LoginPage</code>,
+           <code>ProductPage</code>, <code>CartPage</code>) and the <code>XPathStore</code>
+           template engine for reusable locators.</p></div>
+      <div class="card"><h4><span class="ico">🔗</span>integration-tests</h4>
+        <p><code>BaseHybridTest</code> bridges both stacks; <code>CustomerHybridTest</code>
+           demonstrates cross-layer create/validate/cleanup flows.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- PATTERNS -->
+<section id="patterns">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Design Patterns</h2>
+    <p class="sub">Proven patterns keep the framework scalable and DRY.</p>
+    <table>
+      <thead><tr><th>Pattern</th><th>Where</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><b>Page Object Model</b></td><td><code>ui.pages.*</code></td><td>Encapsulate locators + actions, no assertions</td></tr>
+        <tr><td><b>Factory</b></td><td><code>DriverFactory</code></td><td>Build configured WebDriver (browser / headless / grid)</td></tr>
+        <tr><td><b>Singleton</b></td><td><code>ConfigManager</code>, <code>ReportManager</code></td><td>One shared config / report source</td></tr>
+        <tr><td><b>ThreadLocal holder</b></td><td><code>DriverManager</code></td><td>One WebDriver per test thread (parallel-safe)</td></tr>
+        <tr><td><b>Composition over inheritance</b></td><td><code>BaseHybridTest</code></td><td>Inherit UI base, compose API base</td></tr>
+        <tr><td><b>Template store</b></td><td><code>XPathStore</code></td><td>Externalised, reusable locator shapes</td></tr>
+        <tr><td><b>IAnnotationTransformer</b></td><td><code>RetryTransformer</code></td><td>Apply retry to every test globally</td></tr>
+        <tr><td><b>ServiceLoader (SPI)</b></td><td><code>META-INF/services</code></td><td>Auto-register listeners on every module</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- HYBRID FLOW -->
+<section id="flow">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Hybrid Test Flow</h2>
+    <p class="sub">API sets up deterministic data; UI validates; API cleans up.</p>
+    <div class="flow">
+      <div class="step api"><div class="n">1</div><h4>Arrange via API</h4><p>Create a customer with <code>CustomerApiClient</code> for fast, deterministic setup.</p></div>
+      <div class="step api"><div class="n">2</div><h4>Assert via API</h4><p>Confirm the record exists — a cross-layer integrity check.</p></div>
+      <div class="step ui"><div class="n">3</div><h4>Drive the UI</h4><p>Exercise the browser through the <code>LoginPage</code> POM in the same test.</p></div>
+      <div class="step api"><div class="n">4</div><h4>Cleanup via API</h4><p><code>@AfterClass</code> deletes the data so runs stay idempotent.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- LOCATORS -->
+<section id="locators">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Locators via XPathStore</h2>
+    <p class="sub">Locator <i>shapes</i> live in a properties file; pages pass only the values.</p>
+    <div class="grid cols-2">
+      <div>
+        <pre><code><span class="cm"># xpath.store.properties</span>
+INPUT_BY_ID              = //input[contains(@id,<span class="st">'%s'</span>)]
+ELEMENT_BY_TAG_ATTRIBUTE = //%s[contains(@%s,<span class="st">'%s'</span>)]
+ELEMENT_BY_ID            = //*[contains(@id,<span class="st">'%s'</span>)]
+ELEMENT_BY_TAG_TEXT      = //%s[contains(text(),<span class="st">'%s'</span>)]</code></pre>
+      </div>
+      <div>
+        <pre><code><span class="cm">// LoginPage</span>
+<span class="kw">private final</span> By username =
+    XPathStore.by(<span class="st">"INPUT_BY_ID"</span>, <span class="st">"user-name"</span>);
+
+<span class="cm">// -> //input[contains(@id,'user-name')]</span></code></pre>
+        <p class="sub" style="margin-top:12px">
+          <code>buildXpath()</code> trims the template and every argument, so stray spaces never
+          leak into a locator. Adding a shape is a one-line change.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONFIG + TESTNG -->
+<section id="config">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Configuration &amp; Execution</h2>
+    <p class="sub">Environment-driven config and parallel-ready TestNG.</p>
+    <div class="grid cols-2">
+      <div class="card">
+        <h4><span class="ico">⚙️</span>Config precedence</h4>
+        <p style="margin-bottom:10px"><code>-Dkey</code> system properties &rarr;
+          <code>api.&lt;env&gt;.properties</code> &rarr; <code>ui.&lt;env&gt;.properties</code> &rarr;
+          <code>apiBaseConfig.properties</code></p>
+        <p>Switch environment with <code>-Denv=qa|stage</code> (default <code>qa</code>); override any
+           key inline with <code>-Dkey=value</code>.</p>
+      </div>
+      <div class="card">
+        <h4><span class="ico">🧵</span>TestNG strategy</h4>
+        <p style="margin-bottom:10px">Suites: <code>ui-suite.xml</code>, <code>hybrid-suite.xml</code>;
+           groups: <code>ui</code>, <code>api</code>, <code>hybrid</code>, <code>smoke</code>,
+           <code>regression</code>.</p>
+        <p>Parallel by <code>methods</code> (thread-count 2); each thread gets its own driver.
+           Retry via <code>RetryAnalyzer</code> (<code>ui.retry.count</code>).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RUN -->
+<section id="run">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Build &amp; Run</h2>
+    <p class="sub">Maven drives every layer; each <code>-pl</code> maps to a CI stage.</p>
+    <pre><code><span class="cm"># build all modules</span>
+mvn clean install -DskipTests
+
+<span class="cm"># run a single layer</span>
+mvn test -pl api-automation-framework
+mvn test -pl ui-automation-framework -Dui.headless=true
+mvn test -pl integration-tests -am -Dui.headless=true
+
+<span class="cm"># overrides: browser + environment</span>
+mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage</code></pre>
+    <p class="sub" style="margin-top:14px">Report &rarr; <code>target/extent-report.html</code> with
+       full-page screenshots embedded inline on UI failures.</p>
+  </div>
+</section>
+
+<!-- BEST PRACTICES -->
+<section id="best">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Best Practices Applied</h2>
+    <p class="sub">Why this design scales to enterprise use.</p>
+    <ul class="clean">
+      <li><b>No duplicated API logic</b> — hybrid tests call the API client directly.</li>
+      <li><b>Minimal UI/API coupling</b> — the only bridge is <code>common</code> plus <code>BaseHybridTest</code>.</li>
+      <li><b>Parallel-ready by design</b> — ThreadLocal driver, environment-driven config.</li>
+      <li><b>Centralised everything</b> — locators, config, logging and reporting live in <code>common</code>.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Hybrid Automation Framework &middot; Selenium WebDriver + REST Assured + Java + TestNG<br>
+    Generated documentation &middot; open this file in any browser (works fully offline).
+  </div>
+</footer>
+
+</body>
+</html>
+
+
