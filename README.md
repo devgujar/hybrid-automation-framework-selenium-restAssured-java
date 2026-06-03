@@ -160,7 +160,93 @@ The API side uses `CustomerApiClient` (`getCustomer`, `createCustomerIfNotExists
 
 ---
 
-## 8. Configuration & Environments
+## 8. Example Test Usage
+
+The same patterns across all three layers — concise, readable, assertion-focused.
+
+**UI** — `ui/tests/LoginUiTest.java`
+
+```java
+public class LoginUiTest extends BaseUiTest {
+
+  // Driver is created per-thread in BaseUiTest; read it via getDriver().
+  @Test(groups = {"ui", "smoke"})
+  public void validLoginShowsInventory() {
+    LoginPage login = new LoginPage(getDriver())
+        .openAt(baseUrl())
+        .login();                          // default creds from config
+    Assert.assertTrue(login.isLoggedIn(),
+        "User should land on the inventory page");
+  }
+
+  @Test(groups = {"ui", "regression"})
+  public void invalidLoginShowsError() {
+    LoginPage login = new LoginPage(getDriver())
+        .openAt(baseUrl())
+        .login("locked_out_user", "wrong_password");
+    Assert.assertFalse(login.errorMessage().isEmpty(),
+        "An error banner should be shown");
+  }
+}
+```
+
+**API** — `api/tests/CustomerApiApiTest.java`
+
+```java
+public class CustomerApiApiTest extends BaseApiTest {
+
+  CustomerApiClient client = new CustomerApiClient();
+
+  @Test
+  public void testCustomerCreate() throws Exception {
+    String payload = client.getDefaultCustomerPayload();
+    client.deleteCustomerIfExists("1");            // clean slate
+
+    Response response = client.createCustomer(payload);
+    Assert.assertEquals(response.getStatusCode(), 201);
+
+    // Creating the same record again should conflict
+    Response duplicate = client.createCustomer(payload);
+    Assert.assertEquals(duplicate.getStatusCode(), 409);
+  }
+}
+```
+
+**Hybrid** — `hybrid/tests/CustomerHybridTest.java`
+
+```java
+// extends BaseHybridTest = UI lifecycle + composed API setup
+public class CustomerHybridTest extends BaseHybridTest {
+
+  private final CustomerApiClient customer = new CustomerApiClient();
+  private static final String CUSTOMER_ID = "1000";
+
+  @Test(groups = {"hybrid", "smoke"})
+  public void createViaApi_thenValidate() throws Exception {
+    // 1-2. Arrange + assert via API
+    String payload = customer.getCustomerPayload(CUSTOMER_ID,
+        "testUser1000", "testUser1000@mail.com",
+        "India", "Pune", "411001");
+    customer.createCustomerIfNotExists(payload, CUSTOMER_ID);
+    Assert.assertTrue(customer.isCustomerRecordExists(CUSTOMER_ID));
+
+    // 3. Drive the UI in the same test
+    LoginPage login = new LoginPage(getDriver())
+        .openAt(baseUrl())
+        .login("standard_user", "secret_sauce");
+    Assert.assertTrue(login.isLoggedIn());
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void cleanupData() {
+    customer.deleteCustomerIfExists(CUSTOMER_ID);     // 4. Cleanup via API
+  }
+}
+```
+
+---
+
+## 9. Configuration & Environments
 
 | Scope | Keys |
 |-------|------|
@@ -173,7 +259,7 @@ The API side uses `CustomerApiClient` (`getCustomer`, `createCustomerIfNotExists
 
 ---
 
-## 9. Build & Run
+## 10. Build & Run
 
 ```bash
 mvn clean install -DskipTests                              # build all modules
@@ -189,7 +275,7 @@ The HTML report lands at `target/extent-report.html`; failure screenshots are em
 
 ---
 
-## 10. Best Practices Applied
+## 11. Best Practices Applied
 
 - No duplicated API logic — hybrid tests call the API client directly.
 - Minimal UI/API coupling — the only bridge is `common` plus `BaseHybridTest`.
