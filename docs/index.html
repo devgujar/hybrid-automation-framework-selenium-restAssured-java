@@ -139,7 +139,7 @@
       <span class="badge"><b>Java</b> 17</span>
       <span class="badge"><b>Maven</b> multi-module</span>
     </div>
-    <h1>Hybrid Automation Framework<br><span>UI + API</span>, one cohesive design</h1>
+    <h1><span>One Framework</span> <br><h2>UI + API Automation, one cohesive design</h2></h1>
     <p>A scalable, modular framework that pairs Selenium UI automation with REST Assured API
        automation, orchestrated by TestNG and unified by a shared <code>common</code> module
        for config, drivers, listeners and reporting.</p>
@@ -189,6 +189,19 @@
         <code>BaseHybridTest</code>.
       </p>
     </div>
+  </div>
+</section>
+
+<!-- BEST PRACTICES -->
+<section id="best">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Scalable, Easy to Maintain, and Enterprise Grade Hybrid Test Automation Framework</h2>
+    <ul class="clean">
+      <li><b>No duplicated API logic</b> — hybrid tests call the API client directly.</li>
+      <li><b>Minimal UI/API coupling</b> — the only bridge is <code>common</code> plus <code>BaseHybridTest</code>.</li>
+      <li><b>Parallel-ready by design</b> — ThreadLocal driver, environment-driven config.</li>
+      <li><b>Centralised everything</b> — locators, config, logging and reporting live in <code>common</code>.</li>
+    </ul>
   </div>
 </section>
 
@@ -324,19 +337,6 @@ mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage</code></pr
   </div>
 </section>
 
-<!-- BEST PRACTICES -->
-<section id="best">
-  <div class="wrap">
-    <h2 class="title"><span class="dot"></span>Best Practices Applied</h2>
-    <p class="sub">Why this design scales to enterprise use.</p>
-    <ul class="clean">
-      <li><b>No duplicated API logic</b> — hybrid tests call the API client directly.</li>
-      <li><b>Minimal UI/API coupling</b> — the only bridge is <code>common</code> plus <code>BaseHybridTest</code>.</li>
-      <li><b>Parallel-ready by design</b> — ThreadLocal driver, environment-driven config.</li>
-      <li><b>Centralised everything</b> — locators, config, logging and reporting live in <code>common</code>.</li>
-    </ul>
-  </div>
-</section>
 
 <footer>
   <div class="wrap">
