@@ -11,15 +11,14 @@ config, reporting and listeners across every layer.
 A Maven multi-module build with one shared foundation and three test layers:
 
 ```
-                      +--------------------------+
-                      |          common          |
-                      |  config . driver . POM   |
-                      |  listeners . reporting   |
-                      |  utility (ServiceLoader) |
-                      +------------+-------------+
-                                   | depended on by all
-        +--------------------------+--------------------------+
-        v                          v                          v
+                     +------------------------------+
+                     |            common            |
+                     |  config . driver . utility   |
+                     |    listeners . reporting     |
+                     +--------------+---------------+
+                                    | depended on by all
+        +---------------------------+---------------------------+
+        v                           v                           v
 +----------------+        +----------------+        +----------------------+
 |      api       |        |       ui       |        |  integration-tests   |
 |  REST Assured  |        |    Selenium    |        |        Hybrid        |
