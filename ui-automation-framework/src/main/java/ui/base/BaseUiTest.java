@@ -30,6 +30,10 @@ public abstract class BaseUiTest {
 
     protected final ConfigManager config = ConfigManager.getInstance();
 
+    /**
+     * Creates a fresh thread-bound driver before each test and lands the session on the
+     * post-login page using default credentials. Subclasses may override to customise setup.
+     */
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
         DriverFactory.createDriver();
@@ -49,6 +53,7 @@ public abstract class BaseUiTest {
         return config.get("ui.base.url");
     }
 
+    /** Quits and unbinds the current thread's driver after each test. */
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
         DriverManager.quit();

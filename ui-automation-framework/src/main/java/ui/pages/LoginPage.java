@@ -6,9 +6,10 @@ import ui.base.BasePage;
 import ui.support.XPathStore;
 
 /**
- * Sample Page Object (POM) for the SauceDemo login page.
+ * Page Object (POM) for the SauceDemo login page.
  * <p>
  * Demonstrates the POM pattern: locators + intention-revealing actions, no assertions.
+ * Locators are resolved through {@link XPathStore} so their shapes live in one place.
  * </p>
  */
 public class LoginPage extends BasePage {
@@ -19,17 +20,29 @@ public class LoginPage extends BasePage {
     private final By errorBanner = XPathStore.by("ELEMENT_BY_TAG_ATTRIBUTE", "*", "data-test", "error");
     private final By inventoryContainer = XPathStore.by("ELEMENT_BY_ID", "inventory_container");
 
+    /**
+     * @param driver the WebDriver bound to the current thread
+     */
     public LoginPage(WebDriver driver) {
         super(driver);
     }
 
-    /** Opens the login page at the given base URL. */
+    /**
+     * Opens the login page at the given base URL.
+     * @param baseUrl the UI application base URL
+     * @return this page object for fluent chaining
+     */
     public LoginPage openAt(String baseUrl) {
         open(baseUrl);
         return this;
     }
 
-    /** Performs a login with the supplied credentials. */
+    /**
+     * Performs a login with the supplied credentials.
+     * @param user the username to submit
+     * @param pass the password to submit
+     * @return this page object for fluent chaining
+     */
     public LoginPage login(String user, String pass) {
         sendKeys(username, user);
         sendKeys(password, pass);
@@ -37,13 +50,21 @@ public class LoginPage extends BasePage {
         return this;
     }
 
-    /** Performs a login with the default credentials. */
+    /**
+     * Performs a login with the default credentials from configuration
+     * ({@code ui.default.userName} / {@code ui.default.password}).
+     * @return this page object for fluent chaining
+     */
     public LoginPage login() {
         login(config.get("ui.default.userName"), config.get("ui.default.password"));
         return this;
     }
 
-    /** Performs a login with the supplied user and default password. */
+    /**
+     * Performs a login with the supplied user and the default password from configuration.
+     * @param user the username to submit
+     * @return this page object for fluent chaining
+     */
     public LoginPage login(String user) {
         login(user, config.get("ui.default.password"));
         return this;

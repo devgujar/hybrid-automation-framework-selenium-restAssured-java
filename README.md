@@ -1,172 +1,199 @@
-#     hybrid-automation-framework-selenium-restAssured-java
-UI Automation Testing + Api Automation Testing Framework | Tech Stack - Selenium WebDriver + REST Assured + Java + TestNG 
+# hybrid-automation-framework-selenium-restAssured-java
 
-A scalable, modular **hybrid** framework combining **Selenium WebDriver 4** (UI) with an
-**existing REST Assured** API framework (reused **as-is, never modified**), orchestrated by **TestNG**
-and glued together by a shared **common** module.
+UI + API automation in one place — **Selenium WebDriver 4** for the browser, **REST Assured**
+for the services, **TestNG** for execution, and a shared **common** module that wires logging,
+config, reporting and listeners across every layer.
 
 ---
 
 ## 1. Architecture
 
+A Maven multi-module build with one shared foundation and three test layers:
+
 ```
-root (pom) ──────────────────────────────────────────────────────────────
- │
- ├── common/                  Shared infra: config, driver, listeners, reporting, utility
- │      └── used by ───────────────┐                ┌──────────── used by
- │                                 ▼                ▼
- ├── api-automation-framework/  (EXISTING — unchanged)   ui-automation-framework/  (Selenium)
- │      api.base / api.clients / api.core                ui.base / ui.pages / ui.tests
- │                                 │                ▲
- │                                 └──── both reused by ────┐
- │                                                          ▼
- └── integration-tests/   Hybrid orchestration: BaseHybridTest + cross-layer UI/API tests
+                      +--------------------------+
+                      |          common          |
+                      |  config . driver . POM   |
+                      |  listeners . reporting   |
+                      |  utility (ServiceLoader) |
+                      +------------+-------------+
+                                   | depended on by all
+        +--------------------------+--------------------------+
+        v                          v                          v
++----------------+        +----------------+        +----------------------+
+|      api       |        |       ui       |        |  integration-tests   |
+|  REST Assured  |        |    Selenium    |        |        Hybrid        |
+| base . clients |        | base . pages . |        |  BaseHybridTest +    |
+| . core         |        | support.tests  |        |  UI x API scenarios  |
++----------------+        +----------------+        +----------+-----------+
+       ^                          ^                            |
+       +-------- reuses api (clients) + ui (browser) ----------+
 ```
 
-**How UI and API interact without tight coupling**
+**How the layers stay decoupled**
 
-- UI code never imports REST Assured. Hybrid tests live in `integration-tests` and call the
-  existing `api.clients.CustomerApiClient` **directly** for the API side.
-- The bridge is **`BaseHybridTest`** (`integration-tests`, package `common.base`): it
-  **extends** `ui.base.BaseUiTest` (full WebDriver lifecycle) and **composes**
-  `api.base.BaseApiTest` (RestAssured base URI + relaxed SSL) — getting both behaviours without
-  illegal multiple inheritance and without touching the API module.
-- Result: **loose coupling**, **no duplicated API logic**, API module stays a black box.
+- UI code never imports REST Assured; API code never imports Selenium.
+- Hybrid scenarios live only in `integration-tests` and call `api.clients.CustomerApiClient`
+  directly for the service side.
+- The bridge is **`BaseHybridTest`**: it **extends** `ui.base.BaseUiTest` (browser lifecycle) and
+  **composes** `api.base.BaseApiTest` (RestAssured base URI + relaxed SSL) — both behaviours
+  without multiple inheritance.
 
 ---
 
-## 2. Integration Strategy (key constraint)
-
-> ❗ The API module must remain **unchanged**.
-
-External consumption from the hybrid layer:
-
-| Mode | Where | Example |
-|------|-------|---------|
-| Direct client call | hybrid test body / setup | `new CustomerApiClient().getCustomer(id)` |
-| Reused API base setup | `common.base.BaseHybridTest` | composes `api.base.BaseApiTest#setUpBaseURI()` |
-
-**Listener reuse across UI *and* API without touching the API module** uses TestNG
-**ServiceLoader auto-discovery**:
+## 2. Module Layout
 
 ```
-common/src/main/resources/META-INF/services/org.testng.ITestNGListener
-    common.listeners.TestListener
-    common.listeners.RetryTransformer
-```
+common/
+  src/main/java/common/
+    config/ConfigManager.java        Singleton, environment-aware config reader
+    driver/DriverFactory.java        Factory: browser / headless / grid
+    driver/DriverManager.java        ThreadLocal WebDriver (parallel-safe)
+    listeners/TestListener.java      ITestListener + ISuiteListener (log + report + screenshot)
+    listeners/RetryAnalyzer.java     Retries flaky tests (ui.retry.count)
+    listeners/RetryTransformer.java  Applies RetryAnalyzer to every @Test
+    reporting/ReportManager.java     ExtentReports (Singleton + ThreadLocal)
+    utility/ScreenshotUtil.java      Full-page screenshots; no-op on API threads
+  src/main/resources/
+    apiBaseConfig.properties         API base config (classpath root)
+    config/ui.qa.properties          UI env + browser/grid/retry defaults
+    config/ui.stage.properties
+    config/api.qa.properties         API endpoint + auth + SSL
+    config/api.stage.properties
+    log4j2.xml
+    META-INF/services/org.testng.ITestNGListener   Auto-registers the shared listeners
 
-Because every module (including the untouched API module) depends on `common`, TestNG registers
-these listeners automatically — **zero changes to API code or its test files**.
+api-automation-framework/
+  src/main/java/api/
+    base/BaseApiClient.java   base/BaseApiTest.java
+    clients/CustomerApiClient.java
+    core/AuthProvider.java    core/SpecFactory.java
+  src/test/java/api/tests/CustomerApiApiTest.java
 
----
+ui-automation-framework/
+  src/main/java/ui/
+    base/BaseUiTest.java             Driver lifecycle + auto-login (getDriver())
+    base/BasePage.java               POM foundation (waits, click, sendKeys, getText)
+    pages/LoginPage.java   pages/ProductPage.java   pages/CartPage.java
+    support/XPathStore.java          Builds locators from named templates
+  src/main/resources/xpaths/xpath.store.properties   Reusable parameterised XPath shapes
+  src/test/java/ui/tests/LoginUiTest.java   ProductTest.java   E2ETest.java
+  src/test/resources/suites/ui-suite.xml
 
-## 3. Folder Structure
-
-```
-common/src/main/java/common/
-   config/ConfigManager.java          # Singleton, env-aware (UI + hybrid)
-   driver/DriverFactory.java          # Factory (browser/grid/headless)
-   driver/DriverManager.java          # ThreadLocal WebDriver (parallel-safe)
-   listeners/TestListener.java        # Shared ITestListener + ISuiteListener
-   listeners/RetryAnalyzer.java       # Flaky-test retry (ui.retry.count)
-   listeners/RetryTransformer.java    # Auto-applies retry to all @Test
-   reporting/ReportManager.java       # ExtentReports (Singleton + ThreadLocal)
-   utility/ScreenshotUtil.java        # UI screenshots (no-op for API threads)
-common/src/main/resources/
-   apiBaseConfig.properties           # shared API base config (relocated from API module; classpath root)
-   config/ui.qa.properties            # UI (Selenium) QA env + shared UI defaults
-   config/ui.stage.properties         # UI (Selenium) Stage env
-   config/api.qa.properties           # API (RestAssured) QA env
-   config/api.stage.properties        # API (RestAssured) Stage env
-   log4j2.xml
-   META-INF/services/org.testng.ITestNGListener
-
-api-automation-framework/   (UNCHANGED)  api.base / api.clients / api.core / api.config
-
-ui-automation-framework/src/main/java/ui/
-   base/{BaseUiTest,BasePage}.java     # driver lifecycle (getDriver) + POM foundation
-   pages/LoginPage.java                # Page Object Model
-ui-automation-framework/src/test/...    tests/LoginUiTest.java + suites/ui-suite.xml
-
-integration-tests/  (hybrid)
-   src/main/java/common/base/BaseHybridTest.java        # UI lifecycle + composed API setup
-   src/test/java/hybrid/tests/CustomerHybridTest.java + suites/hybrid-suite.xml
+integration-tests/
+  src/main/java/common/base/BaseHybridTest.java      UI lifecycle + composed API setup
+  src/test/java/hybrid/tests/CustomerHybridTest.java
+  src/test/resources/suites/hybrid-suite.xml
 ```
 
 ---
 
-## 4. Design Patterns
+## 3. Design Patterns
 
-| Pattern | Location | Purpose |
-|---------|----------|---------|
-| **Page Object Model** | `ui.pages.*` | Encapsulate UI locators + actions |
-| **Factory** | `DriverFactory` | Build configured WebDriver instances |
-| **Singleton** | `ConfigManager`, `ReportManager` | One shared config/report source |
-| **ThreadLocal holder** | `DriverManager` | Parallel-safe driver per thread |
-| **Composition over inheritance** | `BaseHybridTest` | Inherit UI base + compose API base |
-| **IAnnotationTransformer** | `RetryTransformer` | Apply retry globally |
+| Pattern | Where | Purpose |
+|---------|-------|---------|
+| **Page Object Model** | `ui.pages.*` | Encapsulate locators + actions, no assertions |
+| **Factory** | `DriverFactory` | Build configured WebDriver (browser / headless / grid) |
+| **Singleton** | `ConfigManager`, `ReportManager` | One shared config / report source |
+| **ThreadLocal holder** | `DriverManager` | One WebDriver per test thread |
+| **Composition over inheritance** | `BaseHybridTest` | Inherit UI base, compose API base |
+| **Template store** | `XPathStore` + `xpath.store.properties` | Externalised, reusable locator shapes |
+| **IAnnotationTransformer** | `RetryTransformer` | Apply retry to every test globally |
+| **ServiceLoader (SPI)** | `META-INF/services` | Auto-register listeners on every module |
+
+---
+
+## 4. Locators via XPathStore
+
+Locator *shapes* live in `xpaths/xpath.store.properties`; pages pass only the values:
+
+```properties
+INPUT_BY_ID              = //input[contains(@id,'%s')]
+ELEMENT_BY_TAG_ATTRIBUTE = //%s[contains(@%s,'%s')]
+ELEMENT_BY_ID            = //*[contains(@id,'%s')]
+ELEMENT_BY_TAG_TEXT      = //%s[contains(text(),'%s')]
+```
+
+```java
+// LoginPage
+private final By username = XPathStore.by("INPUT_BY_ID", "user-name");
+// -> //input[contains(@id,'user-name')]
+```
+
+`XPathStore.buildXpath(key, args...)` trims the template and every argument before formatting,
+so stray spaces never leak into a locator. Adding a new shape is a one-line properties change.
 
 ---
 
 ## 5. Common Module Usage
 
-- ✅ **TestNG listeners** auto-registered via ServiceLoader.
-- **Logging** — SLF4J + Log4j2 (`log4j2.xml`, console + `target/logs/automation.log`).
-- **Config** — system props > `config/api.<env>.properties` > `config/ui.<env>.properties` > `apiBaseConfig.properties`.
-- **Reporting** — ExtentReports → `target/extent-report.html`.
-- **Screenshots** — `common.utility.ScreenshotUtil` attaches to the report on UI failures only.
+- **Listeners** — `TestListener` + `RetryTransformer` auto-registered via TestNG ServiceLoader,
+  so the same logging / reporting / retry applies to UI, API and hybrid runs with no per-suite wiring.
+- **Logging** — SLF4J + Log4j2 (`log4j2.xml`).
+- **Config** — `ConfigManager` precedence: `-Dkey` system properties ->
+  `config/api.<env>.properties` -> `config/ui.<env>.properties` -> `apiBaseConfig.properties`.
+- **Reporting** — ExtentReports -> `target/extent-report.html`.
+- **Screenshots** — `ScreenshotUtil` captures a full-page image on UI failures and embeds it
+  inline in the report; it safely no-ops when a thread has no WebDriver (API tests).
 
 ---
 
 ## 6. TestNG Strategy
 
-- **Suites:** `ui-suite.xml`, `hybrid-suite.xml` (API module keeps default class scanning).
-- **Groups:** `smoke`, `regression`, `ui`, `api`, `hybrid`.
-- **Parallelism:** `parallel="methods"` with a `ThreadLocal` driver per thread; tests read it via `getDriver()`.
-- **Retry:** `RetryTransformer` applies `RetryAnalyzer` (`ui.retry.count`).
+- **Suites:** `ui-suite.xml`, `hybrid-suite.xml` (the API module uses default class scanning).
+- **Groups:** `ui`, `api`, `hybrid`, `smoke`, `regression`.
+- **Parallelism:** `parallel="methods" thread-count="2"`; each thread gets its own driver from
+  `DriverManager`, read through `getDriver()`.
+- **Retry:** `RetryTransformer` applies `RetryAnalyzer` (`ui.retry.count`, default 1).
 
 ---
 
-## 7. Hybrid Test Examples (`hybrid.tests.CustomerHybridTest extends BaseHybridTest`)
+## 7. Hybrid Test Examples
 
-1. **Create data via API → validate via API**, then drive UI in the same test.
-2. **Fetch data via API → feed UI validation** (API = source of truth).
-3. **Cleanup via API** in `@AfterClass` — no API module changes.
+`hybrid.tests.CustomerHybridTest extends BaseHybridTest`:
 
----
+1. **Create data via API -> validate via API**, then drive the UI in the same test.
+2. **Fetch data via API -> feed a UI assertion** (API is the source of truth).
+3. **Clean up via API** in `@AfterClass` so runs stay idempotent.
 
-## 8–10. Driver, Config, Reporting
-
-- Thread-safe `DriverFactory` + `DriverManager` (Chrome/Firefox/Edge, local or **Selenium Grid**).
-- Config keys (UI): `ui.browser`, `ui.headless`, `ui.grid.enabled`, `ui.grid.url`,
-  `ui.implicit.wait.seconds`, `ui.page.load.timeout.seconds`, `ui.explicit.wait.seconds`, `ui.retry.count`, `ui.base.url`.
-- Config keys (API): `api.base.uri`, `api.ssl.relaxed`, `api.enable.logging`, `api.auth.*`
-  (resolved by the API module via `apiBaseConfig.properties`).
-- Environments via `-Denv=qa|stage` (default `qa`); any key overridable with `-Dkey=value`.
-- UI failures auto-attach a screenshot; API request/response logging stays in the API framework
-  (`api.enable.logging` in `config/api.<env>.properties`).
+The API side uses `CustomerApiClient` (`getCustomer`, `createCustomerIfNotExists`,
+`deleteCustomerIfExists`, `getCustomerPayload`, ...); the UI side uses the `LoginPage` POM.
 
 ---
 
-## 11–12. CI/CD & Local Runs
+## 8. Configuration & Environments
 
-Maven drives every layer; module selection keeps runs targeted and maps onto any CI runner
-(GitHub Actions / Jenkins) with one stage per layer:
+| Scope | Keys |
+|-------|------|
+| UI | `ui.base.url`, `ui.default.userName`, `ui.default.password`, `ui.browser`, `ui.headless`, `ui.implicit.wait.seconds`, `ui.page.load.timeout.seconds`, `ui.explicit.wait.seconds`, `ui.grid.enabled`, `ui.grid.url`, `ui.retry.count` |
+| API | `api.base.uri`, `api.ssl.relaxed`, `api.enable.logging`, `api.http.*`, `api.auth.*` |
+
+- Select environment with `-Denv=qa|stage` (default `qa`).
+- Override any key inline with `-Dkey=value`.
+- Driver supports **Chrome / Firefox / Edge**, local or **Selenium Grid** (`ui.grid.enabled=true`).
+
+---
+
+## 9. Build & Run
 
 ```bash
-mvn clean install -DskipTests                              # build everything
-mvn test -pl api-automation-framework                      # API layer (default scanning)
+mvn clean install -DskipTests                              # build all modules
+mvn test -pl api-automation-framework                      # API layer
 mvn test -pl ui-automation-framework -Dui.headless=true    # UI layer
 mvn test -pl integration-tests -am -Dui.headless=true      # Hybrid layer
-mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=qa   # overrides
+
+mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage   # overrides
 ```
+
+Each `-pl` module maps cleanly onto a CI stage (GitHub Actions / Jenkins), one per layer.
+The HTML report lands at `target/extent-report.html`; failure screenshots are embedded inline.
 
 ---
 
-## 13. Best Practices
+## 10. Best Practices Applied
 
-- No duplication of API logic (direct client calls, API module untouched).
-- Minimal UI↔API coupling (only via `common` + the `BaseHybridTest` bridge).
-- Highly reusable `common` module; parallel-ready (ThreadLocal driver) and environment-driven.
-
+- No duplicated API logic — hybrid tests call the API client directly.
+- Minimal UI/API coupling — the only bridge is `common` plus `BaseHybridTest`.
+- Parallel-ready by design — ThreadLocal driver, environment-driven config.
+- Reusable, centralised locators, config, logging and reporting in `common`.
 

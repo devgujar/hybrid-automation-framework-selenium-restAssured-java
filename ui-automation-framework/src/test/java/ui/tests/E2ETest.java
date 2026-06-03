@@ -8,13 +8,16 @@ import ui.pages.ProductPage;
 import static org.testng.Assert.assertTrue;
 
 /**
- * Sample Selenium UI test demonstrating the POM + shared listener wiring.
- * <p>Groups: {@code ui}, {@code smoke}/{@code regression}.</p>
+ * End-to-end Selenium UI test covering the full add-to-cart and checkout journey.
+ * <p>Builds on {@link BaseUiTest} (auto-login) and exercises {@link ProductPage} and
+ * {@link CartPage} through to order confirmation.</p>
+ * <p>Groups: {@code ui}, {@code regression}.</p>
  */
 public class E2ETest extends BaseUiTest {
     private ProductPage productPage;
     private CartPage cartPage;
 
+    /** Logs in via the base setup, then instantiates the page objects for this flow. */
     @Override
     @BeforeClass(alwaysRun = true)
     public void setUp() {
@@ -24,6 +27,7 @@ public class E2ETest extends BaseUiTest {
     }
 
 
+    /** Adds products, checks out with customer details and asserts the order confirmation. */
     @Test(groups = {"ui", "regression"})
     public void testE2EAddProductsAndCheckOut() {
         // Add two Products

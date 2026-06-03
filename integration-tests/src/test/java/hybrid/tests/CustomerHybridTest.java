@@ -13,8 +13,8 @@ import ui.pages.LoginPage;
 /**
  * Hybrid (UI + API) scenarios orchestrated WITHOUT modifying the API module.
  * <p>
- * It extends {@link BaseUiTest} to inherit the thread-safe WebDriver lifecycle and the
- * shared {@code common.listeners.TestListener}, and uses the existing
+ * It extends {@link BaseHybridTest} to inherit the thread-safe WebDriver lifecycle, the shared
+ * {@code common.listeners.TestListener} and the RestAssured bootstrap, and uses the existing
  * {@link CustomerApiClient} (the unmodified REST Assured client) directly for the API side.
  * </p>
  *
@@ -77,12 +77,17 @@ public class CustomerHybridTest extends BaseHybridTest {
         Assert.assertFalse(expectedName.isBlank(), "API-provided data should be usable by UI assertions");
     }
 
-    /** @return the customer name as reported by the API, or {@code null} if absent. */
+    /**
+     * Fetches the customer name through the API.
+     * @param id the customer id
+     * @return the customer name as reported by the API, or {@code null} if absent.
+     */
     private String fetchName(String id) {
         Response response = customer.getCustomer(id);
         return response.getStatusCode() == 200 ? response.jsonPath().getString("name") : null;
     }
 
+    /** Tears down the test customer via the API so runs stay idempotent (no UI/API module changes). */
     @AfterClass(alwaysRun = true)
     public void cleanupData() {
         customer.deleteCustomerIfExists(CUSTOMER_ID); // tidy data via API, no UI/API module changes
