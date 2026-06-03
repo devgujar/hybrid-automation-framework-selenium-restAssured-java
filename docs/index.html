@@ -106,6 +106,16 @@
   .kw { color:#ff7b72; }
   .st { color:#a5d6ff; }
 
+  /* Example usage */
+  .example { margin-bottom: 18px; }
+  .example .ex-head { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .chip { font-size:.72rem; font-weight:700; letter-spacing:.4px; text-transform:uppercase; padding:3px 10px; border-radius:999px; border:1px solid var(--border); }
+  .chip.api { color:#7ee787; border-color:#2c5530; background:rgba(63,185,80,.08); }
+  .chip.ui { color:#d2a8ff; border-color:#4b3a66; background:rgba(188,140,255,.08); }
+  .chip.hybrid { color:#f0a3c8; border-color:#5e3a4d; background:rgba(247,120,186,.08); }
+  .example .ex-head span.path { color:var(--muted); font-size:.85rem; font-family:"SF Mono","Cascadia Code",Consolas,monospace; }
+  .example pre { margin:0; }
+
   /* Flow steps */
   .flow { display:grid; grid-template-columns: repeat(4,1fr); gap:14px; }
   .step { background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px; position:relative; }
@@ -260,6 +270,100 @@
       <div class="step api"><div class="n">2</div><h4>Assert via API</h4><p>Confirm the record exists — a cross-layer integrity check.</p></div>
       <div class="step ui"><div class="n">3</div><h4>Drive the UI</h4><p>Exercise the browser through the <code>LoginPage</code> POM in the same test.</p></div>
       <div class="step api"><div class="n">4</div><h4>Cleanup via API</h4><p><code>@AfterClass</code> deletes the data so runs stay idempotent.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- EXAMPLE TEST USAGE -->
+<section id="examples">
+  <div class="wrap">
+    <h2 class="title"><span class="dot"></span>Example Test Usage</h2>
+    <p class="sub">The same patterns across all three layers — concise, readable, assertion-focused.</p>
+
+    <div class="example">
+      <div class="ex-head">
+        <span class="chip ui">UI</span>
+        <span class="path">ui/tests/LoginUiTest.java</span>
+      </div>
+      <pre><code><span class="kw">public class</span> LoginUiTest <span class="kw">extends</span> BaseUiTest {
+
+  <span class="cm">// Driver is created per-thread in BaseUiTest; read it via getDriver().</span>
+  <span class="kw">@Test</span>(groups = {<span class="st">"ui"</span>, <span class="st">"smoke"</span>})
+  <span class="kw">public void</span> validLoginShowsInventory() {
+    LoginPage login = <span class="kw">new</span> LoginPage(getDriver())
+        .openAt(baseUrl())
+        .login();                          <span class="cm">// default creds from config</span>
+    Assert.assertTrue(login.isLoggedIn(),
+        <span class="st">"User should land on the inventory page"</span>);
+  }
+
+  <span class="kw">@Test</span>(groups = {<span class="st">"ui"</span>, <span class="st">"regression"</span>})
+  <span class="kw">public void</span> invalidLoginShowsError() {
+    LoginPage login = <span class="kw">new</span> LoginPage(getDriver())
+        .openAt(baseUrl())
+        .login(<span class="st">"locked_out_user"</span>, <span class="st">"wrong_password"</span>);
+    Assert.assertFalse(login.errorMessage().isEmpty(),
+        <span class="st">"An error banner should be shown"</span>);
+  }
+}</code></pre>
+    </div>
+
+    <div class="example">
+      <div class="ex-head">
+        <span class="chip api">API</span>
+        <span class="path">api/tests/CustomerApiApiTest.java</span>
+      </div>
+      <pre><code><span class="kw">public class</span> CustomerApiApiTest <span class="kw">extends</span> BaseApiTest {
+
+  CustomerApiClient client = <span class="kw">new</span> CustomerApiClient();
+
+  <span class="kw">@Test</span>
+  <span class="kw">public void</span> testCustomerCreate() <span class="kw">throws</span> Exception {
+    String payload = client.getDefaultCustomerPayload();
+    client.deleteCustomerIfExists(<span class="st">"1"</span>);            <span class="cm">// clean slate</span>
+
+    Response response = client.createCustomer(payload);
+    Assert.assertEquals(response.getStatusCode(), <span class="st">201</span>);
+
+    <span class="cm">// Creating the same record again should conflict</span>
+    Response duplicate = client.createCustomer(payload);
+    Assert.assertEquals(duplicate.getStatusCode(), <span class="st">409</span>);
+  }
+}</code></pre>
+    </div>
+
+    <div class="example">
+      <div class="ex-head">
+        <span class="chip hybrid">Hybrid</span>
+        <span class="path">hybrid/tests/CustomerHybridTest.java</span>
+      </div>
+      <pre><code><span class="cm">// extends BaseHybridTest = UI lifecycle + composed API setup</span>
+<span class="kw">public class</span> CustomerHybridTest <span class="kw">extends</span> BaseHybridTest {
+
+  <span class="kw">private final</span> CustomerApiClient customer = <span class="kw">new</span> CustomerApiClient();
+  <span class="kw">private static final</span> String CUSTOMER_ID = <span class="st">"1000"</span>;
+
+  <span class="kw">@Test</span>(groups = {<span class="st">"hybrid"</span>, <span class="st">"smoke"</span>})
+  <span class="kw">public void</span> createViaApi_thenValidate() <span class="kw">throws</span> Exception {
+    <span class="cm">// 1-2. Arrange + assert via API</span>
+    String payload = customer.getCustomerPayload(CUSTOMER_ID,
+        <span class="st">"testUser1000"</span>, <span class="st">"testUser1000@mail.com"</span>,
+        <span class="st">"India"</span>, <span class="st">"Pune"</span>, <span class="st">"411001"</span>);
+    customer.createCustomerIfNotExists(payload, CUSTOMER_ID);
+    Assert.assertTrue(customer.isCustomerRecordExists(CUSTOMER_ID));
+
+    <span class="cm">// 3. Drive the UI in the same test</span>
+    LoginPage login = <span class="kw">new</span> LoginPage(getDriver())
+        .openAt(baseUrl())
+        .login(<span class="st">"standard_user"</span>, <span class="st">"secret_sauce"</span>);
+    Assert.assertTrue(login.isLoggedIn());
+  }
+
+  <span class="kw">@AfterClass</span>(alwaysRun = <span class="kw">true</span>)
+  <span class="kw">public void</span> cleanupData() {
+    customer.deleteCustomerIfExists(CUSTOMER_ID);     <span class="cm">// 4. Cleanup via API</span>
+  }
+}</code></pre>
     </div>
   </div>
 </section>
