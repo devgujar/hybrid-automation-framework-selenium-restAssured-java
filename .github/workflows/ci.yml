@@ -55,7 +55,7 @@ jobs:
 
       - name: Hybrid Module Run tests (headless)
         if: ${{ github.event.inputs.layer == 'hybrid' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
-        run: mvn -B test -pl integration-tests -am -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
+        run: mvn -B test -pl integration-tests -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
         continue-on-error: true
 
       - name: Upload reports
