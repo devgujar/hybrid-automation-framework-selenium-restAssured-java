@@ -48,7 +48,12 @@ jobs:
         run: mvn -B test -pl ui-automation-framework -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
         continue-on-error: true
 
-      - name: Hybrid tests (headless)
+
+      - name: Hybrid Module Build dependencies (skip tests)
+        if: ${{ github.event.inputs.layer == 'hybrid' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
+        run: mvn -B install -pl integration-tests -am -DskipTests
+
+      - name: Hybrid Module Run tests (headless)
         if: ${{ github.event.inputs.layer == 'hybrid' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
         run: mvn -B test -pl integration-tests -am -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
         continue-on-error: true
