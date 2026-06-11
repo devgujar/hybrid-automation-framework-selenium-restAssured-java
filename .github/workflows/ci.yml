@@ -23,6 +23,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Needed so the workflow can push the regenerated dashboard back to the repo.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -62,6 +65,21 @@ jobs:
       - name: Generate consolidated dashboard
         if: always()
         run: java scripts/DashboardGenerator.java . docs/reports
+
+      # Persist the regenerated dashboard back into the repo (docs/ is the GitHub Pages source).
+      # Skipped on pull requests (forks cannot push). '[skip ci]' prevents an infinite trigger loop.
+      - name: Commit dashboard to repo
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/reports
+          if git diff --staged --quiet; then
+            echo "No dashboard changes to commit."
+          else
+            git commit -m "chore(ci): update consolidated test dashboard [skip ci]"
+            git push
+          fi
 
       - name: Upload reports
         if: always()
