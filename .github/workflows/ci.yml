@@ -43,12 +43,12 @@ jobs:
         run: mvn -B test -pl api-automation-framework -Denv=${{ github.event.inputs.env || 'qa' }}
 
       - name: UI tests (headless)
-        if: ${{ github.event.inputs.layer == 'ui' || github.event.inputs.layer == 'all' }}
-        run: mvn -B test -pl ui-automation-framework -Denv=${{ github.event.inputs.env || 'qa' }} -Dheadless=true
+        if: ${{ github.event.inputs.layer == 'ui' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
+        run: mvn -B test -pl ui-automation-framework -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
 
       - name: Hybrid tests (headless)
-        if: ${{ github.event.inputs.layer == 'hybrid' || github.event.inputs.layer == 'all' }}
-        run: mvn -B test -pl integration-tests -am -Denv=${{ github.event.inputs.env || 'qa' }} -Dheadless=true
+        if: ${{ github.event.inputs.layer == 'hybrid' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
+        run: mvn -B test -pl integration-tests -am -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
 
       - name: Upload reports
         if: always()

@@ -43,7 +43,7 @@ public final class DriverFactory {
     public static WebDriver createDriver() {
         ConfigManager config = ConfigManager.getInstance();
         String browser = config.get("ui.browser", "chrome").trim().toLowerCase();
-        boolean headless = config.getBoolean("ui.headless", true);
+        boolean headless = resolveHeadless(config);
         boolean grid = config.getBoolean("ui.grid.enabled", false);
 
         WebDriver driver = grid ? createRemote(browser, headless, config)
@@ -53,7 +53,9 @@ public final class DriverFactory {
                 Duration.ofSeconds(config.getInt("ui.implicit.wait.seconds", 10)));
         driver.manage().timeouts().pageLoadTimeout(
                 Duration.ofSeconds(config.getInt("ui.page.load.timeout.seconds", 30)));
-        driver.manage().window().maximize();
+        if (!headless) {
+            driver.manage().window().maximize();
+        }
 
         DriverManager.set(driver);
         return driver;
@@ -80,10 +82,22 @@ public final class DriverFactory {
         }
     }
 
+    private static boolean resolveHeadless(ConfigManager config) {
+        if (isCiEnvironment()) {
+            return true;
+        }
+        return config.getBoolean("ui.headless", true);
+    }
+
+    private static boolean isCiEnvironment() {
+        return "true".equalsIgnoreCase(System.getenv("CI"))
+                || "true".equalsIgnoreCase(System.getenv("GITHUB_ACTIONS"));
+    }
+
     private static ChromeOptions chromeOptions(boolean headless) {
         ChromeOptions options = new ChromeOptions();
         if (headless) {
-            options.addArguments("--headless=new");
+            options.addArguments("--headless=new", "--disable-gpu");
         }
         options.addArguments("--no-sandbox", "--disable-dev-shm-usage", "--window-size=1920,1080");
         // Disable password manager popup
