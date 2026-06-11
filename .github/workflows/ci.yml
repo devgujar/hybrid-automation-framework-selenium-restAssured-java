@@ -94,3 +94,11 @@ jobs:
             **/target/surefire-reports/**
           if-no-files-found: ignore
 
+      # Trigger a Cloudflare Pages deploy so the published dashboard reflects the latest run.
+      # Skipped on pull requests; only runs when the deploy hook secret is configured.
+      - name: Trigger Cloudflare Deploy
+        if: ${{ always() && github.event_name != 'pull_request' && env.CF_DEPLOY_HOOK != '' }}
+        env:
+          CF_DEPLOY_HOOK: ${{ secrets.CF_DEPLOY_HOOK }}
+        run: curl -X POST "$CF_DEPLOY_HOOK"
+
