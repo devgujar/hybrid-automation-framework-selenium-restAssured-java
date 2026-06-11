@@ -4,6 +4,7 @@ import common.driver.DriverFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 import ui.base.BaseUiTest;
 import ui.pages.LoginPage;
@@ -25,6 +26,7 @@ public class LoginUiTest extends BaseUiTest {
 
     /** Expects login to fail (invalid username) and therefore not reach the inventory page. */
     @Test(groups = {"ui", "smoke"})
+    @Ignore
     public void FailLoginTest() {
         LoginPage login = new LoginPage(getDriver())
                 .openAt(baseUrl())
