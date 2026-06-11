@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.automation</groupId>
-    <artifactId>hybrid-automation-framework-playwright-java</artifactId>
+    <artifactId>hybrid-automation-framework-selenium-java</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>hybrid-automation-framework-playwright-java</name>
-    <description>UI Automation Testing + API Automation Testing Framework - Playwright + Java + TestNG</description>
+    <name>hybrid-automation-framework-selenium-java</name>
+    <description>UI Automation Testing + API Automation Testing Framework - Selenium + Java + TestNG</description>
 
     <modules>
         <module>common</module>
@@ -99,14 +99,6 @@
                 <groupId>com.aventstack</groupId>
                 <artifactId>extentreports</artifactId>
                 <version>${extentreports.version}</version>
-            </dependency>
-
-            <!--ui automation dependencies-->
-            <dependency>
-                <groupId>com.microsoft.playwright</groupId>
-                <artifactId>playwright</artifactId>
-                <version>1.59.0</version>
-                <scope>compile</scope>
             </dependency>
 
             <!--api automation dependencies-->

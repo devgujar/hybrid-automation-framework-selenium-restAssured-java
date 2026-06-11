@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hybrid Automation - Consolidated Dashboard</title>
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#1e293b; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8;
+    --pass:#22c55e; --fail:#ef4444; --skip:#f59e0b; --accent:#6366f1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+       background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);
+       color:var(--text);min-height:100vh;padding:40px 20px}
+  .wrap{max-width:1100px;margin:0 auto}
+  header{text-align:center;margin-bottom:40px}
+  header h1{font-size:2rem;font-weight:700;letter-spacing:.5px}
+  header h1 .spark{background:linear-gradient(90deg,#818cf8,#22d3ee);
+       -webkit-background-clip:text;background-clip:text;color:transparent}
+  header p{color:var(--muted);margin-top:8px;font-size:.9rem}
+  .overall{display:flex;align-items:center;justify-content:center;gap:30px;
+       background:rgba(30,41,59,.6);border:1px solid rgba(148,163,184,.15);
+       border-radius:16px;padding:24px 30px;margin-bottom:36px;flex-wrap:wrap}
+  .ring{width:120px;height:120px;border-radius:50%;
+       display:grid;place-items:center;position:relative}
+  .ring::before{content:"";position:absolute;inset:12px;border-radius:50%;background:#0f172a}
+  .ring span{position:relative;font-size:1.6rem;font-weight:700}
+  .legend{display:flex;flex-direction:column;gap:8px}
+  .legend div{display:flex;align-items:center;gap:10px;font-size:.95rem}
+  .dot{width:12px;height:12px;border-radius:50%}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}
+  .card{background:var(--card);border:1px solid rgba(148,163,184,.15);
+       border-radius:16px;padding:24px;text-decoration:none;color:inherit;
+       transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+       display:block;position:relative;overflow:hidden}
+  .card.clickable:hover{transform:translateY(-6px);
+       box-shadow:0 18px 40px rgba(0,0,0,.45);border-color:var(--accent)}
+  .card .badge{position:absolute;top:18px;right:18px;font-size:.7rem;
+       text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .card h2{font-size:1.25rem;margin-bottom:4px}
+  .ratio{font-size:2.4rem;font-weight:800;margin:10px 0 4px}
+  .ratio small{font-size:1rem;color:var(--muted);font-weight:500}
+  .pct{font-size:.85rem;color:var(--muted);margin-bottom:14px}
+  .bar{height:10px;border-radius:6px;background:rgba(148,163,184,.18);
+       overflow:hidden;display:flex}
+  .bar i{display:block;height:100%}
+  .counts{display:flex;gap:16px;margin-top:14px;font-size:.85rem;flex-wrap:wrap}
+  .counts span{display:flex;align-items:center;gap:6px;color:var(--muted)}
+  .counts b{color:var(--text)}
+  .cta{margin-top:16px;font-size:.85rem;color:#a5b4fc;font-weight:600}
+  .cta.muted{color:var(--muted)}
+  footer{text-align:center;color:var(--muted);margin-top:40px;font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="spark">Hybrid Automation</span> &mdash; Consolidated Dashboard</h1>
+    <p>Selenium + REST Assured &middot; UI &middot; API &middot; Integration</p>
+    <p><a href="../index.html" style="color:#a5b4fc;font-size:.85rem">&larr; Back to project home</a></p>
+  </header>
+  <section class="overall">
+    <div class="ring" style="background:conic-gradient(var(--pass) 95%,rgba(148,163,184,.18) 0)"><span>95%</span></div>
+    <div class="legend">
+      <div><i class="dot" style="background:var(--pass)"></i>Passed&nbsp;<b>20</b></div>
+      <div><i class="dot" style="background:var(--fail)"></i>Failed&nbsp;<b>1</b></div>
+      <div><i class="dot" style="background:var(--skip)"></i>Skipped&nbsp;<b>0</b></div>
+      <div><i class="dot" style="background:#64748b"></i>Total&nbsp;<b>21</b></div>
+    </div>
+  </section>
+  <section class="grid">
+<a class="card clickable" href="api-report.html">
+  <div class="badge">API</div>
+  <h2>API</h2>
+  <div class="ratio">4<small>/4</small></div>
+  <div class="pct">100% passed</div>
+  <div class="bar">
+    <i style="width:100.0%;background:var(--pass)"></i>
+    <i style="width:0.0%;background:var(--fail)"></i>
+    <i style="width:0.0%;background:var(--skip)"></i>
+  </div>
+  <div class="counts">
+    <span><i class="dot" style="background:var(--pass)"></i><b>4</b> passed</span>
+    <span><i class="dot" style="background:var(--fail)"></i><b>0</b> failed</span>
+    <span><i class="dot" style="background:var(--skip)"></i><b>0</b> skipped</span>
+  </div>
+  <div class="cta">View detailed report &rarr;</div>
+</a>
+<a class="card clickable" href="ui-report.html">
+  <div class="badge">UI</div>
+  <h2>UI</h2>
+  <div class="ratio">14<small>/15</small></div>
+  <div class="pct">93% passed</div>
+  <div class="bar">
+    <i style="width:93.3%;background:var(--pass)"></i>
+    <i style="width:6.7%;background:var(--fail)"></i>
+    <i style="width:0.0%;background:var(--skip)"></i>
+  </div>
+  <div class="counts">
+    <span><i class="dot" style="background:var(--pass)"></i><b>14</b> passed</span>
+    <span><i class="dot" style="background:var(--fail)"></i><b>1</b> failed</span>
+    <span><i class="dot" style="background:var(--skip)"></i><b>0</b> skipped</span>
+  </div>
+  <div class="cta">View detailed report &rarr;</div>
+</a>
+<a class="card clickable" href="integration-report.html">
+  <div class="badge">INTEGRATION</div>
+  <h2>INTEGRATION</h2>
+  <div class="ratio">2<small>/2</small></div>
+  <div class="pct">100% passed</div>
+  <div class="bar">
+    <i style="width:100.0%;background:var(--pass)"></i>
+    <i style="width:0.0%;background:var(--fail)"></i>
+    <i style="width:0.0%;background:var(--skip)"></i>
+  </div>
+  <div class="counts">
+    <span><i class="dot" style="background:var(--pass)"></i><b>2</b> passed</span>
+    <span><i class="dot" style="background:var(--fail)"></i><b>0</b> failed</span>
+    <span><i class="dot" style="background:var(--skip)"></i><b>0</b> skipped</span>
+  </div>
+  <div class="cta">View detailed report &rarr;</div>
+</a>
+  </section>
+  <footer>Generated 2026-06-11 15:30:37 &middot; click a card to open the module's detailed Extent report</footer>
+</div>
+</body>
+</html>

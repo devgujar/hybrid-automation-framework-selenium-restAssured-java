@@ -48,6 +48,15 @@
   header.hero h1 span { color: var(--accent); }
   header.hero p { color: var(--muted); max-width: 720px; margin: 0 auto; font-size: 1.08rem; }
 
+  /* Hero CTA */
+  .cta-row { display:flex; gap:14px; justify-content:center; margin-top: 26px; flex-wrap:wrap; }
+  .cta-btn {
+    display:inline-flex; align-items:center; gap:8px; padding: 12px 22px; border-radius: 999px;
+    font-weight: 600; font-size: .98rem; border:1px solid var(--border); transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .cta-btn.primary { background: linear-gradient(135deg, var(--accent), var(--purple)); color:#0d1117; border-color: transparent; }
+  .cta-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
   /* Stat cards */
   .stats { display:grid; grid-template-columns: repeat(4,1fr); gap:16px; margin: 34px 0 10px; }
   .stat { background: var(--panel); border:1px solid var(--border); border-radius: var(--radius); padding:18px; text-align:center; }
@@ -163,6 +172,10 @@
     <p>A scalable, modular framework that pairs Selenium UI automation with REST Assured API
        automation, orchestrated by TestNG and unified by a shared <code>common</code> module
        for config, drivers, listeners and reporting.</p>
+
+    <div class="cta-row">
+      <a class="cta-btn primary" href="reports/index.html">📊 View Test Execution Summary</a>
+    </div>
 
     <div class="stats">
       <div class="stat"><div class="num">4</div><div class="lbl">Maven modules</div></div>

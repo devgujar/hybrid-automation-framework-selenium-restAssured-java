@@ -131,7 +131,8 @@ so stray spaces never leak into a locator. Adding a new shape is a one-line prop
 - **Logging** — SLF4J + Log4j2 (`log4j2.xml`).
 - **Config** — `ConfigManager` precedence: `-Dkey` system properties ->
   `config/api.<env>.properties` -> `config/ui.<env>.properties` -> `apiBaseConfig.properties`.
-- **Reporting** — ExtentReports -> `target/extent-report.html`.
+- **Reporting** — ExtentReports -> `target/extent-report.html` per module, plus a
+  **consolidated dashboard** aggregating all layers (see §10).
 - **Screenshots** — `ScreenshotUtil` captures a full-page image on UI failures and embeds it
   inline in the report; it safely no-ops when a thread has no WebDriver (API tests).
 
@@ -261,17 +262,41 @@ public class CustomerHybridTest extends BaseHybridTest {
 
 ## 10. Build & Run
 
-```bash
-mvn clean install -DskipTests                              # build all modules
-mvn test -pl api-automation-framework                      # API layer
-mvn test -pl ui-automation-framework -Dui.headless=true    # UI layer
-mvn test -pl integration-tests -am -Dui.headless=true      # Hybrid layer
+```
+mvn clean install -DskipTests                              			# build all modules
+mvn test -pl api-automation-framework                      			# API layer
+mvn test -pl ui-automation-framework "-Dui.headless=true"    			# UI layer	 
+mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage   	# overrides
+```
 
-mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage   # overrides
+Hybrid Module Build dependencies (skip tests) and then run tests only from this module
+```
+mvn test -pl integration-tests -am "-Dui.headless=true"	
+mvn test -pl integration-tests "-Dui.headless=true"		
 ```
 
 Each `-pl` module maps cleanly onto a CI stage (GitHub Actions / Jenkins), one per layer.
 The HTML report lands at `target/extent-report.html`; failure screenshots are embedded inline.
+
+### Consolidated dashboard
+
+After running any/all layers, aggregate every module's results into one stylish landing page:
+
+```bash
+java scripts/DashboardGenerator.java . docs/reports
+```
+
+This produces `docs/reports/index.html` showing per-layer pass ratios (e.g. `API 10/10`,
+`UI 12/12`, `INTEGRATION 1/2`) with an overall pass-rate ring. Each card is clickable and
+opens that module's detailed Extent report (copied alongside as `docs/reports/<layer>-report.html`).
+It lives under `docs/` so the project landing page (`docs/index.html`) links straight to it
+via the **View Live Test Dashboard** button.
+
+- Zero external dependencies — runs on the JDK 17 single-file launcher already required by the build.
+- Counts are parsed from each module's `target/surefire-reports/testng-results.xml`
+  (TestNG config methods are excluded), so the numbers match the real test methods.
+- In CI it runs automatically (step *Generate consolidated dashboard*) and is published
+  inside the `automation-reports` artifact.
 
 ---
 

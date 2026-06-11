@@ -58,12 +58,18 @@ jobs:
         run: mvn -B test -pl integration-tests -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
         continue-on-error: true
 
+      # Aggregate per-module TestNG results + Extent reports into one dashboard (docs/reports/index.html).
+      - name: Generate consolidated dashboard
+        if: always()
+        run: java scripts/DashboardGenerator.java . docs/reports
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: automation-reports
           path: |
+            docs/reports/**
             **/target/extent-report.html
             **/target/screenshots/**
             **/target/logs/**
