@@ -478,7 +478,12 @@ mvn clean install -DskipTests
 <span class="cm"># run a single layer</span>
 mvn test -pl api-automation-framework
 mvn test -pl ui-automation-framework -Dui.headless=true
-mvn test -pl integration-tests -am -Dui.headless=true
+
+<span class="cm"># run a integration tests layer</span>
+For Hybrid Module Build dependencies (skip tests) and then run tests only from this module
+
+mvn test -pl integration-tests -am "-Dui.headless=true"
+mvn test -pl integration-tests "-Dui.headless=true"
 
 <span class="cm"># overrides: browser + environment</span>
 mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage</code></pre>
