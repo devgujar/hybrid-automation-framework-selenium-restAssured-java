@@ -271,7 +271,7 @@ mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage   	# overr
 
 Hybrid Module Build dependencies (skip tests) and then run tests only from this module
 ```
-mvn test -pl integration-tests -am "-Dui.headless=true"	
+mvn install -pl integration-tests -DskipTests
 mvn test -pl integration-tests "-Dui.headless=true"		
 ```
 
