@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -120,7 +119,17 @@ public class DashboardGenerator {
         }
         try {
             String fileName = m.key + "-report.html";
-            Files.copy(report, outputDir.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
+            // Rewrite the report-name badge anchor (first "<a href=\"#\">...badge-primary...")
+            // so it links back to the consolidated dashboard instead of doing nothing.
+            String html = Files.readString(report);
+            String needle = "<a href=\"#\"><span class=\"badge badge-primary\">";
+            int idx = html.indexOf(needle);
+            if (idx >= 0) {
+                html = html.substring(0, idx)
+                        + "<a href=\"index.html\"><span class=\"badge badge-primary\">"
+                        + html.substring(idx + needle.length());
+            }
+            Files.writeString(outputDir.resolve(fileName), html);
             m.reportLink = fileName;
         } catch (IOException ex) {
             System.err.println("WARN: could not copy " + report + " : " + ex.getMessage());
