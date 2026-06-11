@@ -54,7 +54,17 @@ public abstract class BasePage {
      * @param locator the element locator
      */
     public void click(By locator) {
-        wait.until(ExpectedConditions.elementToBeClickable(locator)).click();
+        wait.until(ExpectedConditions.elementToBeClickable(locator))
+                .click();
+    }
+
+    /**
+     * Waits until an element is clickable, then clicks it.
+     * @param element the element
+     */
+    public void click(WebElement element) {
+        wait.until(ExpectedConditions.elementToBeClickable(element))
+                .click();
     }
 
     /**
@@ -76,6 +86,10 @@ public abstract class BasePage {
     public String getText(By locator) {
         WebElement element = visibilityOfElementLocated(locator);
         return element.getText();
+    }
+
+    public void waitForTitle(String title) {
+        wait.until(ExpectedConditions.titleContains(title));
     }
 
     /**

@@ -59,5 +59,35 @@ public class ProductTest extends BaseUiTest {
 
     }
 
+    /** Adds five products, removes all five, and asserts the cart is empty (count zero). */
+    @Test(groups = {"ui", "smoke"})
+    public void testAddRemoveFiveProductsCartIsEmpty() {
+        ProductPage productPage = new ProductPage(getDriver());
+
+        String[] products = {
+                "Sauce Labs Backpack",
+                "Sauce Labs Bike Light",
+                "Sauce Labs Bolt T-Shirt",
+                "Sauce Labs Fleece Jacket",
+                "Sauce Labs Onesie"
+        };
+
+        // Add all five products to the cart
+        for (String product : products) {
+            productPage.addProductToCart(product);
+        }
+
+        // Verify the cart badge reflects five products
+        Assert.assertEquals(productPage.getCartCount(), "5", "Cart count should be 5 after adding five products");
+
+        // Remove all five products from the cart
+        for (String product : products) {
+            productPage.removeProductFromCart(product);
+        }
+
+        // The badge disappears when the cart is empty, so the count reads as empty (zero)
+        Assert.assertEquals(productPage.getCartCount(), "", "Cart count should be zero (badge absent) after removing all products");
+    }
+
 }
 
