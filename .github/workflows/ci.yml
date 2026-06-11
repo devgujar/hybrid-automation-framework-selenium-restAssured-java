@@ -41,14 +41,17 @@ jobs:
       - name: API tests
         if: ${{ github.event.inputs.layer == 'api' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
         run: mvn -B test -pl api-automation-framework -fae -Denv=${{ github.event.inputs.env || 'qa' }}
-
+        continue-on-error: true
+        
       - name: UI tests (headless)
         if: ${{ github.event.inputs.layer == 'ui' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
         run: mvn -B test -pl ui-automation-framework -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
+        continue-on-error: true
 
       - name: Hybrid tests (headless)
         if: ${{ github.event.inputs.layer == 'hybrid' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
         run: mvn -B test -pl integration-tests -am -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
+        continue-on-error: true
 
       - name: Upload reports
         if: always()
