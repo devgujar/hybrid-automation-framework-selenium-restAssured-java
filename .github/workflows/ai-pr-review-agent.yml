@@ -1,0 +1,47 @@
+name: AI PR Review Agent
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Get PR diff
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }} > diff.txt
+
+      - name: Call Grok API for review
+        run: |
+          RESPONSE=$(curl https://api.x.ai/v1/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $GROK_API_KEY" \
+            -d "$(jq -n --arg diff "$(cat diff.txt)" '{
+              model: "grok-1",
+              messages: [
+                {
+                  role: "system",
+                  content: "You are a senior software engineer reviewing code. This is a Java maven project. Focus on performance, clean code, and security.""
+                },
+                {
+                  role: "user",
+                  content: ("Review this pull request diff. Provide suggestions, bugs, performance issues, and security concerns:\n\n" + $diff)
+                }
+              ]
+            }')")
+
+          echo "$RESPONSE" | jq -r '.choices[0].message.content' > review.txt
+        env:
+          GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+
+      - name: Post PR comment
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-file: review.txt
