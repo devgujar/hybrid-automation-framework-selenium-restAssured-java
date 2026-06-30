@@ -1,0 +1,10 @@
+{
+  "name": "oneframework.devgujar.workers.dev",
+  "main": "worker.js",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "directory": "./docs",
+    "binding": "ASSETS"
+  }
+}
+

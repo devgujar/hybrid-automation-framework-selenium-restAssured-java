@@ -500,6 +500,297 @@ mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage</code></pr
   </div>
 </footer>
 
+<!-- ============================================================= -->
+<!-- AI CHATBOT WIDGET (Groq powered)                              -->
+<!-- ============================================================= -->
+<style>
+  #chat-fab {
+    position: fixed; bottom: 100px; right: 100px; z-index: 9999;
+    width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    color: #0d1117; font-size: 26px; box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s ease; overflow: hidden; padding: 0;
+  }
+  #chat-fab img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  #chat-fab:hover { transform: scale(1.08); }
+
+  #chat-panel {
+    position: fixed; bottom: 96px; right: 24px; z-index: 9999;
+    width: 370px; max-width: calc(100vw - 32px); height: 520px; max-height: calc(100vh - 130px);
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); display: none; flex-direction: column; overflow: hidden;
+  }
+  #chat-panel.open { display: flex; }
+
+  .chat-head {
+    padding: 14px 16px; background: var(--panel-2); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .chat-head .avatar {
+    width: 30px; height: 30px; border-radius: 50%; flex: 0 0 30px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex; align-items: center; justify-content: center; font-size: 16px; overflow: hidden;
+  }
+  .chat-head .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .chat-head h4 { margin: 0; font-size: .98rem; }
+  .chat-head small { color: var(--muted); font-size: .76rem; }
+  .chat-head .x { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; }
+
+  #chat-msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 85%; padding: 10px 13px; border-radius: 12px; font-size: .9rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.bot  { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .msg.user { align-self: flex-end; background: rgba(88,166,255,.16); border: 1px solid #2f5d8a; border-bottom-right-radius: 4px; }
+  .msg.bot code, .msg.bot b { color: #cdd9e5; }
+  .typing { color: var(--muted); font-style: italic; }
+
+  .chat-input { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--panel); }
+  .chat-input textarea {
+    flex: 1; resize: none; height: 42px; max-height: 120px; padding: 10px 12px; font-family: inherit;
+    font-size: .9rem; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .chat-input textarea:focus { outline: none; border-color: var(--accent); }
+  .chat-input button {
+    flex: 0 0 42px; width: 42px; border: none; border-radius: 10px; cursor: pointer; font-size: 18px;
+    background: linear-gradient(135deg, var(--accent), var(--purple)); color: #0d1117;
+  }
+  .chat-input button:disabled { opacity: .5; cursor: default; }
+  .chat-key-row { padding: 8px 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .chat-key-row a { font-size: .76rem; color: var(--muted); cursor: pointer; }
+</style>
+
+<button id="chat-fab" title="Ask about this framework" aria-label="Open chat">
+  <img src="assets/chatbot.png" alt="Chat assistant"
+       onerror="this.replaceWith(document.createTextNode('\uD83D\uDCAC'))" />
+</button>
+
+<div id="chat-panel" role="dialog" aria-label="Framework assistant">
+  <div class="chat-head">
+    <div class="avatar">
+      <img src="assets/chatbot.png" alt="Bot"
+           onerror="this.replaceWith(document.createTextNode('\uD83E\uDD16'))" />
+    </div>
+    <div>
+      <h4>Framework AI Assistant</h4>
+      <small>Ask anything about this project</small>
+    </div>
+    <button class="x" id="chat-close" aria-label="Close">&times;</button>
+  </div>
+  <div id="chat-msgs"></div>
+  <div class="chat-input">
+    <textarea id="chat-text" placeholder="e.g. How to run only Api tests?" rows="1"></textarea>
+    <button id="chat-send" aria-label="Send">➤</button>
+  </div>
+  <div class="chat-key-row">
+    <a id="chat-reset-key">🔑 Set / change Groq API key</a>
+  </div>
+</div>
+
+<!-- Runtime config.
+     RECOMMENDED (Cloudflare): leave both placeholders as-is. When the site is served
+     over http(s) the widget automatically calls the same-origin /api/chat Pages Function
+     (see functions/api/chat.js), which holds your GROQ_API_KEY env secret server-side —
+     the key never reaches the browser. Set GROQ_API_KEY in your Cloudflare Pages project.
+     Optional overrides (a key here is PUBLICLY readable, so avoid for public sites):
+       window.GROQ_API_KEY   -> use this key directly from the browser
+       window.GROQ_PROXY_URL -> call this explicit proxy URL instead of /api/chat -->
+<script>
+  window.GROQ_API_KEY   = "__GROQ_API_KEY__";   // optional override (leave as-is to use the proxy)
+  window.GROQ_PROXY_URL = "__GROQ_PROXY_URL__"; // optional override (leave as-is to use /api/chat)
+</script>
+<script>
+(function () {
+  // ---- Config ----------------------------------------------------------
+  const GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions";
+  const GROQ_MODEL = "llama-3.3-70b-versatile"; // fast, free-tier friendly Groq model
+  const KEY_STORE  = "groq_api_key";
+
+  // Treat an unreplaced placeholder ("__...__") or empty string as "not configured".
+  const clean = (v) => (typeof v === "string" && v && !/^__.*__$/.test(v)) ? v : "";
+  let   PROXY_URL    = clean(window.GROQ_PROXY_URL); // explicit proxy, if provided
+  const INJECTED_KEY = clean(window.GROQ_API_KEY);   // hardcoded key, if provided (PUBLIC)
+
+  // Default: on a real server with no explicit config, use the same-origin Cloudflare
+  // Pages Function. If it's not deployed (404), we fall back to asking for a key.
+  let proxyIsAuto = false;
+  if (!PROXY_URL && !INJECTED_KEY && location.protocol.indexOf("http") === 0) {
+    PROXY_URL = "/api/chat";
+    proxyIsAuto = true;
+  }
+
+  // Knowledge the model uses to answer (keeps it on-topic & offline-accurate).
+  const SYSTEM_PROMPT = `You are a friendly documentation assistant for the "Hybrid Automation Framework",
+a test automation project. Answer ONLY questions about this framework and general test-automation concepts.
+If asked something unrelated, politely steer back. Keep answers concise and use plain text (short paragraphs / bullets).
+
+KEY FACTS ABOUT THE FRAMEWORK:
+- Stack: Selenium WebDriver 4 (UI), REST Assured 5 (API), TestNG 7, Java 17, Maven multi-module build.
+- It is a Maven multi-module project with 4 modules:
+  1. common  -> shared foundation: Singleton ConfigManager, DriverFactory + ThreadLocal DriverManager,
+     TestNG listeners, ExtentReports ReportManager, ScreenshotUtil. Every other module depends on it.
+  2. api-automation-framework -> REST Assured clients (e.g. CustomerApiClient), base request/response handling, auth & spec factories.
+  3. ui-automation-framework -> Page Object Model (BasePage, LoginPage, ProductPage, CartPage) and an XPathStore template engine for reusable locators.
+  4. integration-tests -> Hybrid layer. BaseHybridTest bridges UI + API; CustomerHybridTest shows cross-layer create/validate/cleanup flows.
+- Design separation: UI code never imports REST Assured; API code never imports Selenium. They meet only in BaseHybridTest.
+- Hybrid test flow: (1) Arrange data via API, (2) Assert it exists via API, (3) Drive the UI with the POM, (4) Cleanup data via API in @AfterClass (idempotent).
+- Design patterns used: Page Object Model, Factory (DriverFactory), Singleton (ConfigManager, ReportManager),
+  ThreadLocal holder (DriverManager) for parallel safety, Composition over inheritance (BaseHybridTest),
+  Template store (XPathStore), IAnnotationTransformer (RetryTransformer), ServiceLoader SPI (META-INF/services to auto-register listeners).
+- XPathStore: locator "shapes" live in xpath.store.properties; pages pass only the values, e.g.
+  XPathStore.by("INPUT_BY_ID", "user-name") -> //input[contains(@id,'user-name')]. buildXpath() trims templates and args.
+- Config precedence: -Dkey system properties > api.<env>.properties > ui.<env>.properties > apiBaseConfig.properties.
+  Switch env with -Denv=qa|stage (default qa). Override any key inline with -Dkey=value.
+- TestNG: suites ui-suite.xml and hybrid-suite.xml; groups: ui, api, hybrid, smoke, regression.
+  Parallel by methods (thread-count 2); each thread gets its own driver. Retry via RetryAnalyzer (ui.retry.count).
+- Build & run commands:
+  Build all: mvn clean install -DskipTests
+  API layer: mvn test -pl api-automation-framework
+  UI layer:  mvn test -pl ui-automation-framework -Dui.headless=true
+  Hybrid:    mvn install -pl integration-tests -DskipTests  then  mvn test -pl integration-tests "-Dui.headless=true"
+  Overrides: mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage
+- Reports: target/extent-report.html, with full-page screenshots embedded inline on UI failures.
+- Source repo: https://github.com/devgujar/hybrid-automation-framework-selenium-restAssured-java`;
+
+  // ---- Elements --------------------------------------------------------
+  const fab    = document.getElementById("chat-fab");
+  const panel  = document.getElementById("chat-panel");
+  const closeB = document.getElementById("chat-close");
+  const msgs   = document.getElementById("chat-msgs");
+  const text   = document.getElementById("chat-text");
+  const sendB  = document.getElementById("chat-send");
+  const resetK = document.getElementById("chat-reset-key");
+
+  // Conversation history sent to the API.
+  const history = [{ role: "system", content: SYSTEM_PROMPT }];
+  let greeted = false;
+
+  // ---- Helpers ---------------------------------------------------------
+  function addMsg(role, content) {
+    const el = document.createElement("div");
+    el.className = "msg " + (role === "user" ? "user" : "bot");
+    el.textContent = content;
+    msgs.appendChild(el);
+    msgs.scrollTop = msgs.scrollHeight;
+    return el;
+  }
+
+  function getKey() {
+    if (INJECTED_KEY) return INJECTED_KEY;            // injected from a GitHub secret at deploy
+    let k = localStorage.getItem(KEY_STORE);
+    if (!k) {
+      k = window.prompt("Enter your Groq API key (stored only in this browser).\nGet a free key at https://console.groq.com/keys");
+      if (k) localStorage.setItem(KEY_STORE, k.trim());
+    }
+    return k ? k.trim() : null;
+  }
+
+  async function ask(question) {
+    history.push({ role: "user", content: question });
+    const typing = addMsg("bot", "Thinking…");
+    typing.classList.add("typing");
+    sendB.disabled = true;
+
+    // Build the request. A proxy keeps the key server-side; otherwise we send the
+    // full Groq payload directly with an Authorization header.
+    let url, headers, body, key = null;
+    if (PROXY_URL) {
+      url = PROXY_URL;
+      headers = { "Content-Type": "application/json" };
+      body = JSON.stringify({ messages: history, model: GROQ_MODEL });
+    } else {
+      key = getKey();
+      if (!key) {
+        typing.classList.remove("typing");
+        typing.textContent = "A Groq API key is required to chat. Click the 🔑 link below to add one.";
+        sendB.disabled = false;
+        history.pop();
+        return;
+      }
+      url = GROQ_URL;
+      headers = { "Content-Type": "application/json", "Authorization": "Bearer " + key };
+      body = JSON.stringify({ model: GROQ_MODEL, messages: history, temperature: 0.3, max_tokens: 700 });
+    }
+
+    try {
+      const res = await fetch(url, { method: "POST", headers, body });
+
+      if (!res.ok) {
+        const errTxt = await res.text();
+        typing.classList.remove("typing");
+        if (res.status === 404 && proxyIsAuto) {
+          // The /api/chat Pages Function isn't deployed — fall back to a browser key.
+          PROXY_URL = "";
+          proxyIsAuto = false;
+          const row = resetK.closest(".chat-key-row");
+          if (row) row.style.display = "";
+          typing.textContent = "No server proxy found (deploy functions/api/chat.js, or set a Groq key via the 🔑 link below), then resend your message.";
+          history.pop();
+        } else if (res.status === 401 && !PROXY_URL && !INJECTED_KEY) {
+          localStorage.removeItem(KEY_STORE);
+          typing.textContent = "Invalid API key. Click the 🔑 link below to set a valid Groq key.";
+        } else {
+          typing.textContent = "Error " + res.status + ": " + errTxt.slice(0, 200);
+        }
+        return;
+      }
+
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content?.trim() || "Sorry, I couldn't generate a response.";
+      history.push({ role: "assistant", content: reply });
+      typing.classList.remove("typing");
+      typing.textContent = reply;
+    } catch (e) {
+      typing.classList.remove("typing");
+      typing.textContent = "Network error: " + e.message;
+    } finally {
+      sendB.disabled = false;
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+  }
+
+  function send() {
+    const q = text.value.trim();
+    if (!q) return;
+    addMsg("user", q);
+    text.value = "";
+    text.style.height = "42px";
+    ask(q);
+  }
+
+  // ---- Events ----------------------------------------------------------
+  fab.addEventListener("click", () => {
+    panel.classList.toggle("open");
+    if (panel.classList.contains("open")) {
+      if (!greeted) {
+        addMsg("bot", "👋 Hi! I'm the AI Assistant. Ask me anything about this Hybrid Automation Framework — its modules, design patterns, hybrid test flow, config, or how to build & run it.");
+        greeted = true;
+      }
+      text.focus();
+    }
+  });
+  closeB.addEventListener("click", () => panel.classList.remove("open"));
+  sendB.addEventListener("click", send);
+  text.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  text.addEventListener("input", () => {
+    text.style.height = "42px";
+    text.style.height = Math.min(text.scrollHeight, 120) + "px";
+  });
+  resetK.addEventListener("click", () => {
+    localStorage.removeItem(KEY_STORE);
+    const k = getKey();
+    addMsg("bot", k ? "✅ API key saved. Go ahead and ask your question!" : "No key set.");
+  });
+
+  // When a proxy or injected key is configured, users never manage a key themselves.
+  if (PROXY_URL || INJECTED_KEY) {
+    const row = resetK.closest(".chat-key-row");
+    if (row) row.style.display = "none";
+  }
+})();
+</script>
+
 </body>
 </html>
 
