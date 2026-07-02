@@ -1,5 +1,6 @@
 package common.listeners;
 
+import common.ai.AiFailureAnalyzer;
 import common.config.ConfigManager;
 import common.driver.DriverManager;
 import common.reporting.ReportManager;
@@ -67,6 +68,21 @@ public class TestListener implements ITestListener, ISuiteListener {
         if (ReportManager.current() != null) {
             ReportManager.current().log(Status.FAIL, result.getThrowable());
 
+            // AI-generated failure triage summary (opt-in via ai.failure.analysis.enabled).
+            // Null-safe: any error or disabled config simply skips this block.
+            if (AiFailureAnalyzer.isEnabled()) {
+                String summary = AiFailureAnalyzer.summarize(
+                        result.getMethod().getQualifiedName(), result.getThrowable());
+                if (summary != null) {
+                    log.info("AI failure analysis for {}:\n{}",
+                            result.getMethod().getMethodName(), summary);
+                    ReportManager.current().info(
+                            "<details open><summary><b>🤖 AI Failure Analysis</b></summary>"
+                                    + "<pre style='white-space:pre-wrap;margin:6px 0;'>"
+                                    + escapeHtml(summary) + "</pre></details>");
+                }
+            }
+
             // UI failures get a screenshot; API failures silently skip (no driver bound).
             if (DriverManager.hasDriver()) {
                 // Archive a PNG on disk (useful as a CI artifact)...
@@ -84,6 +100,13 @@ public class TestListener implements ITestListener, ISuiteListener {
             }
         }
         ReportManager.unload();
+    }
+
+    private static String escapeHtml(String value) {
+        return value
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
     }
 
     @Override

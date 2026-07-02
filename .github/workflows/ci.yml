@@ -45,12 +45,12 @@ jobs:
       # --- Layer-scoped test execution via module selection ---
       - name: API tests
         if: ${{ github.event.inputs.layer == 'api' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
-        run: mvn -B test -pl api-automation-framework -fae -Denv=${{ github.event.inputs.env || 'qa' }}
+        run: mvn -B test -pl api-automation-framework -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dai.api.key="${{ secrets.GROQ_API_KEY }}"
         continue-on-error: true
         
       - name: UI tests (headless)
         if: ${{ github.event.inputs.layer == 'ui' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
-        run: mvn -B test -pl ui-automation-framework -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
+        run: mvn -B test -pl ui-automation-framework -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true -Dai.api.key="${{ secrets.GROQ_API_KEY }}"
         continue-on-error: true
 
 
@@ -60,7 +60,7 @@ jobs:
 
       - name: Hybrid Module Run tests (headless)
         if: ${{ github.event.inputs.layer == 'hybrid' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
-        run: mvn -B test -pl integration-tests -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true
+        run: mvn -B test -pl integration-tests -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true -Dai.api.key="${{ secrets.GROQ_API_KEY }}"
         continue-on-error: true
 
       # Aggregate per-module TestNG results + Extent reports into one dashboard (docs/reports/index.html).

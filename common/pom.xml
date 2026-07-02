@@ -49,6 +49,12 @@
             <groupId>com.aventstack</groupId>
             <artifactId>extentreports</artifactId>
         </dependency>
+
+        <!-- JSON (build request / parse response for the AI failure analyzer) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
     </dependencies>
 
 </project>
