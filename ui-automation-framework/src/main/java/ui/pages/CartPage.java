@@ -37,7 +37,7 @@ public class CartPage extends BasePage {
 
     /** Completes the order on the checkout overview page. */
     public void clickFinish() {
-        click(XPathStore.by("BUTTON_BY_ID", "finish"));
+        click(XPathStore.by("BUTTON_BY_ID", "finished"));
     }
 
     /** Cancels the current checkout step. */

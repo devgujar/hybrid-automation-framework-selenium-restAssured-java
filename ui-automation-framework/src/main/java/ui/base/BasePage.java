@@ -1,11 +1,17 @@
 package ui.base;
 
+import common.ai.AiFailureAnalyzer;
 import common.config.ConfigManager;
+import common.reporting.ReportManager;
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ui.support.XPathStore;
 
 import java.time.Duration;
@@ -18,6 +24,8 @@ import java.time.Duration;
  * </p>
  */
 public abstract class BasePage {
+
+    private static final Logger log = LoggerFactory.getLogger(BasePage.class);
 
     protected final WebDriver driver;
     protected final WebDriverWait wait;
@@ -51,11 +59,54 @@ public abstract class BasePage {
 
     /**
      * Waits until an element is clickable, then clicks it.
+     * <p>
+     * When runtime self-healing is enabled ({@code auto.heal.enabled=true}) and the locator
+     * cannot be resolved, the live DOM and failing locator are sent to
+     * {@link AiFailureAnalyzer#healLocator(String, String)}; a corrected locator, if returned,
+     * is retried once so the test can recover. If healing is disabled or unsuccessful, the
+     * original failure propagates unchanged so failure analysis (if enabled) still runs.
+     * </p>
      * @param locator the element locator
      */
     public void click(By locator) {
-        wait.until(ExpectedConditions.elementToBeClickable(locator))
-                .click();
+        try {
+            wait.until(ExpectedConditions.elementToBeClickable(locator))
+                    .click();
+        } catch (TimeoutException | NoSuchElementException e) {
+            By healed = tryHeal(locator);
+            if (healed == null) {
+                throw e;
+            }
+            wait.until(ExpectedConditions.elementToBeClickable(healed))
+                    .click();
+        }
+    }
+
+    /**
+     * Best-effort runtime self-heal for a failing locator. Returns a corrected {@link By} when
+     * self-healing is enabled and the AI proposes a usable XPath, otherwise {@code null}.
+     * Fully null-safe: any error simply yields {@code null} so the original failure surfaces.
+     */
+    private By tryHeal(By locator) {
+        if (!AiFailureAnalyzer.autoHealEnabled()) {
+            return null;
+        }
+        try {
+            String healedXpath = AiFailureAnalyzer.healLocator(locator.toString(), driver.getPageSource());
+            if (healedXpath == null || healedXpath.isBlank()) {
+                return null;
+            }
+            By healed = By.xpath(healedXpath);
+            String message = "Auto-healed locator: " + locator + "  ->  " + healed;
+            log.warn(message);
+            if (ReportManager.current() != null) {
+                ReportManager.current().warning("\uD83E\uDE79 " + message);
+            }
+            return healed;
+        } catch (Exception ex) {
+            log.warn("Auto-heal attempt failed for {}: {}", locator, ex.toString());
+            return null;
+        }
     }
 
     /**

@@ -30,19 +30,23 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * Generates a concise, AI-authored root-cause summary for a failing test.
- * <p>
- * <b>Why it lives in {@code common}:</b> failure triage is a cross-cutting reporting concern
- * shared by UI, API and hybrid suites, exactly like {@link common.listeners.TestListener}
- * which drives it.
- * </p>
+ * AI helpers for a Selenium + REST Assured Java/TestNG framework. Two features share the
+ * same OpenAI-compatible <em>Chat Completions</em> plumbing:
+ * <ul>
+ *   <li><b>Failure analysis</b> ({@link #summarize}) — a post-failure, report-only root-cause
+ *       summary + suggested fix (Option&nbsp;C).</li>
+ *   <li><b>Locator self-healing</b> ({@link #healLocator}) — a runtime attempt to repair a
+ *       failing UI locator so the test can recover (Option&nbsp;B).</li>
+ * </ul>
+ *
+ * <p><b>Why it lives in {@code common}:</b> both are cross-cutting concerns shared by UI, API
+ * and hybrid suites, exactly like {@link common.listeners.TestListener} which drives analysis.</p>
  *
  * <p><b>Provider:</b> any OpenAI-compatible <em>Chat Completions</em> endpoint
  * (OpenAI, Azure OpenAI, Groq, local Ollama/LM&nbsp;Studio, ...). Configure via
- * {@code ai.*} keys (see {@code config/ui.<env>.properties}). It is <b>disabled by
+ * {@code ai.*} keys (see {@code config/ui.<env>.properties}). Both features are <b>disabled by
  * default</b> and fully <b>null-safe</b>: any misconfiguration, network error or
- * non-200 response returns {@code null} so a failing test is never masked by an
- * analyzer problem.</p>
+ * non-200 response returns {@code null} so a test is never masked by an AI problem.</p>
  *
  * <p><b>Secrets:</b> a single {@code ai.api.key} property drives the API key.
  * Resolution order: the system property {@code -Dai.api.key} (used in CI, where the
@@ -57,13 +61,19 @@ public final class AiFailureAnalyzer {
 
     private AiFailureAnalyzer() {}
 
-    /** @return {@code true} when the feature is switched on via {@code ai.failure.analysis.enabled}. */
+    /** @return {@code true} when failure analysis is on via {@code ai.failure.analysis.enabled}. */
     public static boolean isEnabled() {
         return ConfigManager.getInstance().getBoolean("ai.failure.analysis.enabled", false);
     }
 
+    /** @return {@code true} when runtime locator self-healing is on via {@code auto.heal.enabled}. */
+    public static boolean autoHealEnabled() {
+        return ConfigManager.getInstance().getBoolean("auto.heal.enabled", false);
+    }
+
     /**
-     * Produces a short failure summary for the given test.
+     * Produces a short failure summary (and, when the test source is found, a suggested fix)
+     * for the given test. Report-only; does not change the test outcome.
      *
      * @param testName   qualified test method name
      * @param throwable  the failure cause (may be {@code null})
@@ -74,10 +84,53 @@ public final class AiFailureAnalyzer {
             return null;
         }
         ConfigManager cfg = ConfigManager.getInstance();
+        int maxTrace = cfg.getInt("ai.max.stacktrace.chars", 4000);
+        int maxSource = cfg.getInt("ai.max.source.chars", 6000);
+        String prompt = buildPrompt(testName, throwable, maxTrace, maxSource);
+        String system = "You provide short, actionable software test failure analyses and, "
+                + "when given the test source, a minimal corrected test in a Java code block.";
+        return sendChat(cfg, system, prompt);
+    }
 
+    /**
+     * Attempts to repair a failing UI locator at runtime (Option&nbsp;B). Given the failing
+     * locator and the live page HTML, asks the model for a single corrected XPath that locates
+     * the element the original locator was clearly intended to match.
+     *
+     * <p>Fully null-safe: returns {@code null} when self-healing is disabled, inputs are blank,
+     * the model is unavailable, or the reply is not a usable XPath — the caller then lets the
+     * original failure propagate so {@link #summarize} (if enabled) can still run.</p>
+     *
+     * @param failingLocator the failing locator (e.g. {@code locator.toString()})
+     * @param pageSource     the current page HTML ({@code driver.getPageSource()})
+     * @return a corrected XPath expression, or {@code null} if unavailable
+     */
+    public static String healLocator(String failingLocator, String pageSource) {
+        if (!autoHealEnabled()) {
+            return null;
+        }
+        if (failingLocator == null || failingLocator.isBlank()
+                || pageSource == null || pageSource.isBlank()) {
+            return null;
+        }
+        ConfigManager cfg = ConfigManager.getInstance();
+        int maxDom = cfg.getInt("auto.heal.max.dom.chars", 12000);
+        String system = "You are a Selenium locator self-healing assistant. Given a failing XPath "
+                + "and the current page HTML, reply with ONLY a single corrected XPath expression "
+                + "that uniquely locates the intended element. No prose, no explanation, no code fences.";
+        String prompt = buildHealPrompt(failingLocator, pageSource, maxDom);
+        return sanitizeXpath(sendChat(cfg, system, prompt));
+    }
+
+    /**
+     * Shared OpenAI-compatible Chat Completions call. Resolves the API key/URL/model/timeout,
+     * honours {@code ai.tls.insecure}, and returns the assistant message content or {@code null}
+     * on any misconfiguration, non-2xx response or transport error.
+     */
+    private static String sendChat(ConfigManager cfg, String systemMessage, String userPrompt) {
         String apiKey = resolveApiKey(cfg);
         if (apiKey == null || apiKey.isBlank()) {
-            log.warn("AI failure analysis enabled but no API key resolved; skipping. "
+            log.warn("AI feature enabled but no API key resolved; skipping. "
                     + "Set -Dai.api.key (CI: from a secret) or ai.api.key in config/ui.<env>.properties.");
             return null;
         }
@@ -85,12 +138,9 @@ public final class AiFailureAnalyzer {
         String url = cfg.get("ai.api.url", "https://api.groq.com/openai/v1/chat/completions");
         String model = cfg.get("ai.model", "llama-3.3-70b-versatile");
         int timeout = cfg.getInt("ai.timeout.seconds", 30);
-        int maxTrace = cfg.getInt("ai.max.stacktrace.chars", 4000);
-        int maxSource = cfg.getInt("ai.max.source.chars", 6000);
 
         try {
-            String prompt = buildPrompt(testName, throwable, maxTrace, maxSource);
-            String body = buildRequestBody(model, prompt);
+            String body = buildRequestBody(model, systemMessage, userPrompt);
 
             HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(timeout));
@@ -112,7 +162,7 @@ public final class AiFailureAnalyzer {
                     client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() / 100 != 2) {
-                log.warn("AI failure analysis HTTP {}: {}", response.statusCode(),
+                log.warn("AI request HTTP {}: {}", response.statusCode(),
                         truncate(response.body(), 500));
                 return null;
             }
@@ -123,12 +173,12 @@ public final class AiFailureAnalyzer {
                 root = root.getCause();
             }
             if (root instanceof CertPathBuilderException || e instanceof SSLHandshakeException) {
-                log.warn("AI failure analysis TLS trust error (likely a corporate proxy CA missing "
+                log.warn("AI request TLS trust error (likely a corporate proxy CA missing "
                         + "from the JVM truststore). Import the CA into cacerts, set "
                         + "-Djavax.net.ssl.trustStore, or (POC only) set ai.tls.insecure=true. Cause: {}",
                         root.toString());
             } else {
-                log.warn("AI failure analysis unavailable: {}", e.toString());
+                log.warn("AI request unavailable: {}", e.toString());
             }
             return null;
         }
@@ -246,15 +296,55 @@ public final class AiFailureAnalyzer {
         }
     }
 
-    private static String buildRequestBody(String model, String prompt) {
+    private static String buildHealPrompt(String failingLocator, String pageSource, int maxDom) {
+        return new StringBuilder()
+                .append("A Selenium locator failed to match any element on the page.\n\n")
+                .append("Failing locator:\n").append(failingLocator).append("\n\n")
+                .append("This is usually a small mismatch (for example an attribute value such as ")
+                .append("'finished' should be 'finish'). Using the page HTML below, return the single ")
+                .append("best corrected XPath that locates the element the original locator was clearly ")
+                .append("intended to match. Keep the same general shape where possible. Respond with ")
+                .append("ONLY the XPath expression, nothing else.\n\n")
+                .append("Page HTML:\n").append(truncate(pageSource, maxDom))
+                .toString();
+    }
+
+    /**
+     * Normalises a model reply into a usable XPath: strips code fences, keeps the first
+     * non-empty line, and returns it only when it looks like an XPath expression. Returns
+     * {@code null} otherwise so the caller does not retry with garbage.
+     */
+    private static String sanitizeXpath(String content) {
+        if (content == null) {
+            return null;
+        }
+        String xpath = content.trim();
+        if (xpath.startsWith("```")) {
+            xpath = xpath.replaceAll("(?s)```[a-zA-Z]*", "").replace("```", "").trim();
+        }
+        for (String line : xpath.split("\\R")) {
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty()) {
+                xpath = trimmed;
+                break;
+            }
+        }
+        if (xpath.startsWith("//") || xpath.startsWith(".//")
+                || xpath.startsWith("/") || xpath.startsWith("(")) {
+            return xpath;
+        }
+        log.debug("AI heal returned non-XPath content: {}", truncate(xpath, 200));
+        return null;
+    }
+
+    private static String buildRequestBody(String model, String systemMessage, String prompt) {
         ObjectNode root = MAPPER.createObjectNode();
         root.put("model", model);
         root.put("temperature", 0.2);
         ArrayNode messages = root.putArray("messages");
         ObjectNode system = messages.addObject();
         system.put("role", "system");
-        system.put("content", "You provide short, actionable software test failure analyses and, "
-                + "when given the test source, a minimal corrected test in a Java code block.");
+        system.put("content", systemMessage);
         ObjectNode user = messages.addObject();
         user.put("role", "user");
         user.put("content", prompt);

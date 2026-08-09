@@ -1,4 +1,4 @@
-name: Hybrid Automation CI
+name: Run Test Suite - Automation CI
 on:
   schedule:
     - cron: '0 21 * * 5'
@@ -21,6 +21,12 @@ on:
         default: "qa"
         type: choice
         options: [ qa, staging, prod ]
+      auto_heal:
+        description: "Runtime self-heal of UI locators (auto.heal.enabled)"
+        required: false
+        default: "false"
+        type: choice
+        options: [ "false", "true" ]
 
 jobs:
   build:
@@ -50,7 +56,7 @@ jobs:
         
       - name: UI tests (headless)
         if: ${{ github.event.inputs.layer == 'ui' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
-        run: mvn -B test -pl ui-automation-framework -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true -Dai.api.key="${{ secrets.GROQ_API_KEY }}"
+        run: mvn -B test -pl ui-automation-framework -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true -Dauto.heal.enabled=${{ github.event.inputs.auto_heal || 'false' }} -Dai.api.key="${{ secrets.GROQ_API_KEY }}"
         continue-on-error: true
 
 
@@ -60,7 +66,7 @@ jobs:
 
       - name: Hybrid Module Run tests (headless)
         if: ${{ github.event.inputs.layer == 'hybrid' || github.event.inputs.layer == 'all' || github.event_name != 'workflow_dispatch' }}
-        run: mvn -B test -pl integration-tests -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true -Dai.api.key="${{ secrets.GROQ_API_KEY }}"
+        run: mvn -B test -pl integration-tests -fae -Denv=${{ github.event.inputs.env || 'qa' }} -Dui.headless=true -Dauto.heal.enabled=${{ github.event.inputs.auto_heal || 'false' }} -Dai.api.key="${{ secrets.GROQ_API_KEY }}"
         continue-on-error: true
 
       # Aggregate per-module TestNG results + Extent reports into one dashboard (docs/reports/index.html).
