@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import common.config.ConfigManager;
+import common.driver.DriverManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,10 +87,31 @@ public final class AiFailureAnalyzer {
         ConfigManager cfg = ConfigManager.getInstance();
         int maxTrace = cfg.getInt("ai.max.stacktrace.chars", 4000);
         int maxSource = cfg.getInt("ai.max.source.chars", 6000);
-        String prompt = buildPrompt(testName, throwable, maxTrace, maxSource);
+        int maxDom = cfg.getInt("ai.max.dom.chars", 8000);
+        String pageSource = capturePageSource();
+        String prompt = buildPrompt(testName, throwable, maxTrace, maxSource, pageSource, maxDom);
         String system = "You provide short, actionable software test failure analyses and, "
-                + "when given the test source, a minimal corrected test in a Java code block.";
+                + "when given the test source, a minimal corrected fix in a Java code block. When a "
+                + "failure is caused by an element not being found, you prefer correcting the "
+                + "locator/XPath itself over adding waits or retries.";
         return sendChat(cfg, system, prompt);
+    }
+
+    /**
+     * Best-effort capture of the current page HTML from the UI driver bound to the failing
+     * thread. Returns {@code null} for API-only threads (no driver) or on any error, so failure
+     * analysis still proceeds without it.
+     */
+    private static String capturePageSource() {
+        try {
+            if (!DriverManager.hasDriver()) {
+                return null;
+            }
+            return DriverManager.get().getPageSource();
+        } catch (Exception e) {
+            log.debug("Could not capture page source for failure analysis: {}", e.toString());
+            return null;
+        }
     }
 
     /**
@@ -210,7 +232,8 @@ public final class AiFailureAnalyzer {
         return cfg.get("ai.api.key");
     }
 
-    private static String buildPrompt(String testName, Throwable throwable, int maxTrace, int maxSource) {
+    private static String buildPrompt(String testName, Throwable throwable, int maxTrace,
+                                      int maxSource, String pageSource, int maxDom) {
         String stack = stackTraceToString(throwable);
         String source = readTestSource(testName, maxSource);
 
@@ -223,14 +246,32 @@ public final class AiFailureAnalyzer {
                 .append("Failing test: ").append(testName).append("\n\n")
                 .append("Failure details:\n").append(truncate(stack, maxTrace));
 
+        if (pageSource != null && !pageSource.isBlank() && maxDom > 0) {
+            prompt.append("\n\nThis framework builds locators via XPathStore.by(KEY, args...) — for ")
+                    .append("example XPathStore.by(\"BUTTON_BY_ID\", \"finished\") produces ")
+                    .append("//button[contains(@id,'finished')]. The current page HTML at the moment of ")
+                    .append("failure is included below. IMPORTANT: if the failure is a NoSuchElement/")
+                    .append("TimeoutException locating an element, the most likely cause is an INCORRECT ")
+                    .append("LOCATOR, not a missing wait. Compare the failing locator against the HTML; if ")
+                    .append("an attribute value is wrong (e.g. the XPath searches for id 'finished' but the ")
+                    .append("element's id is 'finish'), your suggested fix MUST correct the locator (the ")
+                    .append("XPathStore argument / XPath value) so it matches the real DOM. Do NOT paper ")
+                    .append("over a wrong locator by adding waits, sleeps or retries.\n\n")
+                    .append("Page HTML at failure:\n")
+                    .append("```html\n").append(truncate(pageSource, maxDom)).append("\n```");
+        }
+
         if (source != null && !source.isBlank()) {
             prompt.append("\n\nBelow is the current source of the failing test class from this ")
                     .append("repository. Read it, then AFTER the failure analysis add a section titled ")
-                    .append("'Suggested fix' containing the corrected test code inside a single ```java ")
+                    .append("'Suggested fix' containing the corrected code inside a single ```java ")
                     .append("code block. Only include the method(s) or lines you changed (with enough ")
                     .append("surrounding context to apply the fix), keep changes minimal, and briefly ")
-                    .append("note any assumption. If the failure looks like a genuine product bug rather ")
-                    .append("than a test defect, say so instead of forcing a test change.\n\n")
+                    .append("note any assumption. Locators may live in a Page Object rather than this ")
+                    .append("test; when the fix is a locator correction, show the corrected ")
+                    .append("XPathStore.by(...) call (or XPath) and name the file/method it belongs to. ")
+                    .append("If the failure looks like a genuine product bug rather than a test defect, ")
+                    .append("say so instead of forcing a change.\n\n")
                     .append("Test source (").append(testName).append("):\n")
                     .append("```java\n").append(truncate(source, maxSource)).append("\n```");
         }
