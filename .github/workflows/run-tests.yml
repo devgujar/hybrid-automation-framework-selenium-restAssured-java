@@ -16,13 +16,13 @@ on:
         type: choice
         options: [ all, api, ui, hybrid ]
       env:
-        description: "Target environment"
+        description: "Environment"
         required: true
         default: "qa"
         type: choice
         options: [ qa, staging, prod ]
       auto_heal:
-        description: "Runtime self-heal of UI locators (auto.heal.enabled)"
+        description: "Runtime Auto-heal UI locators (auto.heal.enabled)"
         required: false
         default: "false"
         type: choice
