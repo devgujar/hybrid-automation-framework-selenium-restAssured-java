@@ -158,7 +158,7 @@ public final class AiFailureAnalyzer {
         }
 
         String url = cfg.get("ai.api.url", "https://api.groq.com/openai/v1/chat/completions");
-        String model = cfg.get("ai.model", "llama-3.3-70b-versatile");
+        String model = cfg.get("ai.model", "openai/gpt-oss-120b");
         int timeout = cfg.getInt("ai.timeout.seconds", 30);
 
         try {

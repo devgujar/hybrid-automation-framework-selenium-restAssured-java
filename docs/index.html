@@ -602,7 +602,7 @@ mvn test -pl ui-automation-framework -Dui.browser=firefox -Denv=stage</code></pr
 (function () {
   // ---- Config ----------------------------------------------------------
   const GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions";
-  const GROQ_MODEL = "llama-3.3-70b-versatile"; // fast, free-tier friendly Groq model
+  const GROQ_MODEL = "openai/gpt-oss-120b"; // fast, free-tier friendly Groq model
   const KEY_STORE  = "groq_api_key";
 
   // Treat an unreplaced placeholder ("__...__") or empty string as "not configured".

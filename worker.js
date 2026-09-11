@@ -43,7 +43,7 @@ async function handleChat(request, env) {
   }
 
   const body = {
-    model: payload.model || "llama-3.3-70b-versatile",
+    model: payload.model || "openai/gpt-oss-120b",
     messages: payload.messages || [],
     temperature: 0.3,
     max_tokens: 700,
